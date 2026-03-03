@@ -1,19 +1,36 @@
 ---
 name: ask
-description: Ask all configured AI agents a question in parallel and display their responses. Use when the user says "ask all agents", "ask everyone", or wants to get multiple AI perspectives on a question.
+description: Ask configured AI agents a question in parallel and display their responses. Optionally target a specific agent or model. Use when the user says "ask all agents", "ask codex", "ask gemini", "ask glm-5", or wants AI perspectives on a question.
 user-invocable: true
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Multi-Agent Ask
 
-Send a question to all configured agents in parallel, display each response, and provide an optional synthesis.
+Send a question to configured agents in parallel (or a specific one), display each response, and provide an optional synthesis.
 
 ## Usage
 
 ```
-/ask <question>
+/ask <question>                        # ask all configured agents
+/ask codex <question>                  # ask a specific CLI agent
+/ask gemini <question>                 # ask Gemini only
+/ask glm-5 <question>                 # ask by model name (matches OpenCode GLM-5)
+/ask opencode:kimi-k2.5 <question>    # ask by cli:model
 ```
+
+## Argument Parsing
+
+Parse the user's argument to determine whether a specific agent is targeted:
+
+1. **Extract the first word** of the argument (before the question).
+2. **Match it against the resolved roster** using these rules (case-insensitive):
+   - **Exact CLI name**: `codex`, `gemini`, `opencode` — matches entries with that CLI. If multiple entries share the CLI (e.g., multiple opencode models), ask all of them.
+   - **Model name or suffix**: e.g., `glm-5`, `kimi-k2.5`, `minimax-m2.5`, `qwen3.5-plus` — matches the last segment of the model path. Matches a single entry.
+   - **cli:model pattern**: e.g., `opencode:glm-5` — matches a specific CLI + model combination.
+   - **Display name**: e.g., `GLM-5`, `Kimi-K2.5` — case-insensitive match against display names.
+3. **If a match is found**: the first word is the target filter; the rest is the question. Only dispatch to the matched agent(s).
+4. **If no match**: the entire argument (including the first word) is the question. Dispatch to all agents.
 
 ## Instructions
 
@@ -31,6 +48,8 @@ Send a question to all configured agents in parallel, display each response, and
 
 4. Build the roster with display names per the catalog's display name rules.
 
+5. **Apply target filter** (from argument parsing above). If a target was specified, narrow the roster to only the matched agent(s).
+
 ### Step 1: Verify CLIs
 
 Run a single parallel setup call:
@@ -39,11 +58,11 @@ Run a single parallel setup call:
 
 Store `git_dir` (cwd if git repo, else `/tmp/multi-agents-workspace`).
 
-### Step 2: Dispatch All Agents in Parallel
+### Step 2: Dispatch Agents in Parallel
 
-Issue all N Bash tool calls in a **single message** so they run concurrently.
+Issue all N Bash tool calls in a **single message** so they run concurrently (or just 1 call if targeting a single agent).
 
-For each agent in the roster, build the command using the agent's **fresh session** command template from the catalog:
+For each agent in the (filtered) roster, build the command using the agent's **fresh session** command template from the catalog:
 
 - **Codex**: Use `--full-auto` approval flag. Use heredoc prompt passing. Pass `-C {git_dir}`.
 - **Gemini**: Use `-y` approval flag. Use heredoc prompt passing.
@@ -76,18 +95,15 @@ After all agents return:
 
 3. If any agent failed or timed out, note it briefly (e.g., "Codex: [TIMEOUT]" or "OpenCode (GLM-5): [ERROR: ...]") and continue with the others.
 
-### Step 4: Synthesis (optional)
+### Step 4: Synthesis
 
-After displaying all responses, provide a brief synthesis (3-5 sentences):
-- Where agents agree
-- Where they diverge
-- Key insights worth highlighting
-
-Keep it short — the individual responses are the main value.
+- **Multiple agents**: Provide a brief synthesis (3-5 sentences) — where agents agree, diverge, and key insights.
+- **Single agent**: Skip synthesis — just display the response.
 
 ## Error Handling
 
 - If a CLI is not found, skip it and continue with others
 - If an agent times out (>120s), use `TaskOutput` to wait; if still running, use `TaskStop` and note `[TIMEOUT]`
+- If the targeted agent is not found in the roster, list available agents and ask the user to pick one
 - If all agents fail, answer the question yourself
 - For agent-specific quirks, refer to the catalog
