@@ -1,7 +1,7 @@
 ---
 name: review-pr
 description: This skill should be used when the user asks to "review a PR", "review pull request", "PR review", or wants a multi-agent code review of a GitHub pull request using configurable AI tools in parallel.
-version: 0.3.0
+version: 0.4.0
 ---
 
 # Multi-Agent PR Review
@@ -50,6 +50,15 @@ gh api repos/{owner}/{repo}/issues/<PR_NUMBER>/comments --jq '.[] | "[\(.user.lo
 
 Read both the diff and comments files to understand the scope, context, and any prior feedback.
 
+Detect the `gh pr-review` extension and store flags for later use:
+
+```bash
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+gh pr-review --version 2>/dev/null
+```
+
+Store `has_pr_review_ext` (true if exit code 0, false otherwise) and `REPO`. Refer to the **PR Review Extension** section in `references/agent-catalog.md` for the full command reference.
+
 ### Step 2: Launch Review Agents in Parallel
 
 Run ALL agents from the resolved roster **in parallel** as background bash commands. Each agent reviews the diff from a different perspective.
@@ -90,8 +99,68 @@ After all tools finish:
 4. **Identify consensus**: issues flagged by 2+ tools are high-confidence
 5. **Dismiss false positives**: if a finding is clearly wrong given project context, dismiss it with reasoning
 6. **Add your own review insights** based on your reading of the diff, existing comments, and project knowledge
+7. **Classify findings for inline posting** (only when `has_pr_review_ext` is true):
+   - Parse the diff to build a map of `{file → [changed line numbers]}`
+   - For each synthesized finding, check if it has a specific `{path, line}` reference:
+     - **Inline finding**: The cited `path` exists in the diff AND the cited `line` is within ±5 lines of a changed line → will be posted as an inline comment
+     - **General finding**: No specific location, or the cited location doesn't match the diff → goes in the review body summary
+   - This classification is only used for Step 4a; Step 4b ignores it
 
 ### Step 4: Post Review
+
+Use **Step 4a** when `has_pr_review_ext` is true. If 4a fails at any point (start or add-comment errors), abandon and fall back to **Step 4b**. Use **Step 4b** directly when `has_pr_review_ext` is false.
+
+#### Step 4a: Inline Threaded Review (when `has_pr_review_ext` is true)
+
+Post inline comments on specific file+line locations, with a summary body for general findings.
+
+1. **Start a pending review:**
+   ```bash
+   gh pr-review review --start -R ${REPO} <PR_NUMBER>
+   ```
+   Capture the `REVIEW_ID` from the output. If this fails, fall back to Step 4b.
+
+2. **Add inline comments** — for each **inline finding** (has valid `{path, line}` in the diff), run sequentially (NOT in parallel):
+   ```bash
+   gh pr-review review --add-comment --review-id ${REVIEW_ID} \
+     --path <file_path> --line <line_number> \
+     --body "[severity] finding description (sourced by: agent1, agent2)" \
+     -R ${REPO} <PR_NUMBER>
+   ```
+   If any `--add-comment` fails, abandon the pending review and fall back to Step 4b.
+
+3. **Submit the review** with a summary body containing general findings and the attribution table:
+   ```bash
+   gh pr-review review --submit --review-id ${REVIEW_ID} \
+     --event COMMENT \
+     --body "$(cat <<'EOF'
+   ## Multi-Agent PR Review
+
+   ### Summary
+   [1-2 sentence overall assessment]
+
+   ### General Findings
+   [Findings without specific file+line locations, or that couldn't be mapped to the diff]
+
+   ### Suggestions
+   [Non-blocking improvements worth considering]
+
+   ### Notes
+   [Any dismissed false positives or context-specific observations]
+
+   ### Agent Attribution
+   | Finding | {display_name_1} | {display_name_2} | ... |
+   |---------|---|---|---|
+   | [issue] | x |   | x |
+
+   ---
+   Reviewed by: Claude Code + {display_name_1} + {display_name_2} + ...
+   EOF
+   )" \
+     -R ${REPO} <PR_NUMBER>
+   ```
+
+#### Step 4b: Fallback — Single Review Comment (when `has_pr_review_ext` is false, or 4a failed)
 
 Post a single synthesized review comment on the PR via `gh pr review`. Build the attribution table dynamically from the roster:
 
@@ -136,3 +205,5 @@ rmdir pr-reviews 2>/dev/null
 - If the PR number is invalid, report the error clearly
 - If all external tools fail, provide your own review based on the diff
 - For agent-specific error handling, refer to the catalog's known quirks and output cleanup rules
+- If `gh pr-review` extension commands fail during Step 4a, abandon the inline review and fall back to Step 4b (single comment)
+- If `gh pr-review` is installed but returns errors for a specific PR (e.g., permissions), fall back to Step 4b silently

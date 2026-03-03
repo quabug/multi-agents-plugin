@@ -1,7 +1,7 @@
 ---
 name: fix-pr
 description: This skill should be used when the user asks to "fix a PR", "fix pull request", "fix PR issues", "review and fix PR", or wants an iterative multi-agent review + fix loop that automatically resolves issues found in a GitHub pull request.
-version: 0.5.0
+version: 0.6.0
 ---
 
 # Multi-Agent PR Fix
@@ -39,7 +39,16 @@ gh pr view <PR_NUMBER> --json title,body,baseRefName,headRefName
 gh pr checkout <PR_NUMBER>
 ```
 
-After checkout, check for uncommitted local changes:
+After checkout, detect the `gh pr-review` extension and store flags:
+
+```bash
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+gh pr-review --version 2>/dev/null
+```
+
+Store `has_pr_review_ext` (true if exit code 0, false otherwise) and `REPO`. Refer to the **PR Review Extension** section in `references/agent-catalog.md` for the full command reference.
+
+Check for uncommitted local changes:
 
 ```bash
 git status --short
@@ -55,20 +64,40 @@ BASE_BRANCH=$(gh pr view <PR_NUMBER> --json baseRefName -q .baseRefName)
 git diff ${BASE_BRANCH}...HEAD > pr-reviews/pr<PR_NUMBER>.diff
 ```
 
-Fetch existing review comments and conversations — these are first-class issues to fix:
+Fetch existing review comments and conversations — these are first-class issues to fix. Use one of two paths depending on `has_pr_review_ext`:
+
+**When `has_pr_review_ext` is true** — use structured JSON for review threads plus REST for issue-level comments:
 
 ```bash
-REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+gh pr-review review view -R ${REPO} --pr <PR_NUMBER> --unresolved > pr-reviews/pr<PR_NUMBER>.review-threads.json
+gh api repos/${REPO}/issues/<PR_NUMBER>/comments --jq '.[] | "[\(.user.login)] — \(.body)"' > pr-reviews/pr<PR_NUMBER>.comments 2>/dev/null
+```
+
+The `review-threads.json` contains structured data with `thread_id`, `path`, `line`, `body`, and `is_resolved` for each thread. This is preferred over REST for better parsing and thread ID access.
+
+**Fallback (when `has_pr_review_ext` is false)** — current REST API approach:
+
+```bash
 gh api repos/${REPO}/pulls/<PR_NUMBER>/comments --jq '.[] | "[\(.user.login)] \(.path):\(.line // .original_line) — \(.body)"' > pr-reviews/pr<PR_NUMBER>.comments 2>/dev/null
 gh api repos/${REPO}/pulls/<PR_NUMBER>/reviews --jq '.[] | select(.body != "") | "[\(.user.login)] (\(.state)) — \(.body)"' >> pr-reviews/pr<PR_NUMBER>.comments 2>/dev/null
 gh api repos/${REPO}/issues/<PR_NUMBER>/comments --jq '.[] | "[\(.user.login)] — \(.body)"' >> pr-reviews/pr<PR_NUMBER>.comments 2>/dev/null
 ```
 
-Read both the diff and comments files to understand the scope, context, and any prior feedback.
+Read the diff and comments/threads files to understand the scope, context, and any prior feedback.
 
 ### Step 2: Gather Existing Feedback
 
 Parse the fetched comments into an initial issues list. Apply the **PR Comment Filtering** rules from the catalog to skip CI bot noise, quota messages, and auto-generated summaries. Focus on actionable feedback from human reviewers and code review bots with severity-tagged findings.
+
+**When `has_pr_review_ext` is true**: Parse `review-threads.json` to extract structured issues. For each unresolved thread, preserve the `thread_id` alongside the issue data. Maintain a mapping for each actionable issue:
+
+```
+{thread_id, severity, path, line, description}
+```
+
+This mapping is persisted across loop iterations so that threads can be resolved after fixes are applied (Step 3g).
+
+**Fallback**: Parse the plain-text `.comments` file as before (no thread IDs available).
 
 Categorize each piece of actionable feedback by severity:
 - **Critical**: bugs, security issues, data corruption risks mentioned by reviewers
@@ -175,6 +204,34 @@ Then re-generate the diff locally for the next review iteration:
 git diff ${BASE_BRANCH}...HEAD > pr-reviews/pr<PR_NUMBER>.diff
 ```
 
+When `has_pr_review_ext` is true, also refresh the thread data so the next iteration sees up-to-date resolution status:
+
+```bash
+gh pr-review review view -R ${REPO} --pr <PR_NUMBER> --unresolved > pr-reviews/pr<PR_NUMBER>.review-threads.json
+```
+
+#### 3g. Resolve Fixed Review Threads (when `has_pr_review_ext` is true)
+
+**Only when `has_pr_review_ext` is true.** After pushing fixes, resolve the review threads for issues that were actually fixed in this iteration.
+
+For each fixed issue that has a `thread_id`, run sequentially (NOT in parallel):
+
+1. **Reply** to the thread with what was fixed:
+   ```bash
+   gh pr-review comments reply <PR_NUMBER> -R ${REPO} \
+     --thread-id <THREAD_ID> --body "Fixed in $(git rev-parse --short HEAD). {brief description of the fix}"
+   ```
+
+2. **Resolve** the thread:
+   ```bash
+   gh pr-review threads resolve --thread-id <THREAD_ID> -R ${REPO} <PR_NUMBER>
+   ```
+
+**Rules:**
+- Only resolve threads for issues actually fixed this iteration — skip minor issues that were not auto-fixed, partial fixes, and agent-only findings without thread IDs
+- If a reply or resolve command fails, log the error and continue — never abort the fix loop over a resolution failure
+- Thread resolution is best-effort and does not block subsequent iterations
+
 Then loop back to step 3a for re-review.
 
 ### Step 4: Final Report
@@ -206,7 +263,7 @@ If max iterations (3) were reached and issues remain, ask the user if they want 
 ### Step 5: Cleanup
 
 ```bash
-rm -f pr-reviews/pr<PR_NUMBER>.diff pr-reviews/pr<PR_NUMBER>.comments
+rm -f pr-reviews/pr<PR_NUMBER>.diff pr-reviews/pr<PR_NUMBER>.comments pr-reviews/pr<PR_NUMBER>.review-threads.json
 rmdir pr-reviews 2>/dev/null
 ```
 
@@ -217,6 +274,8 @@ rmdir pr-reviews 2>/dev/null
 - **Existing PR feedback is first-class** — unresolved comments from human reviewers are treated as issues to fix, merged and deduplicated with multi-agent findings.
 - **Each iteration commits** — so fixes are incremental and reviewable.
 - **No GitHub review comment posted** — unlike `review-pr`, this skill fixes instead of reporting. The fixes themselves are the output.
+- **Thread resolution is best-effort** — `gh pr-review` thread resolution (Step 3g) never blocks the fix loop. If it fails, the fix was still applied.
+- **Structured JSON preferred over REST** — when `gh pr-review` is available, structured thread data provides thread IDs for resolution and better parsing than the REST API's plain-text output.
 - **User confirmation before fixing** — after each review round, show the issues found and ask the user to confirm before applying fixes.
 - **Pushes after each commit** — keeps the remote PR up to date so reviewers can see incremental fixes.
 - **Local diff generation** — always use `git diff <base>...HEAD` instead of `gh pr diff` to ensure the diff reflects local commits that haven't been pushed yet.
@@ -231,3 +290,6 @@ rmdir pr-reviews 2>/dev/null
 - If all external tools fail, provide your own review based on the diff and fix issues yourself
 - If a fix introduces a build error, attempt to resolve it before committing
 - For agent-specific error handling (model name errors, timeouts, useless output, result collection), refer to the catalog's Common Conventions section
+- If `gh pr-review` extension commands fail during thread resolution (Step 3g), log the error and continue — thread resolution is best-effort and never blocks the fix loop
+- If `gh pr-review review view` fails during comment fetching (Step 1), fall back to the REST API approach for that iteration
+- If `gh pr-review` is installed but returns errors for a specific PR (e.g., permissions), silently fall back to REST-based comment fetching

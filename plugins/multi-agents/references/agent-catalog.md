@@ -234,6 +234,88 @@ When fetching existing PR review comments (for skills like review-pr and fix-pr)
 
 ---
 
+## PR Review Extension (`gh pr-review`)
+
+A GitHub CLI extension for posting inline threaded review comments on PRs — similar to what Gemini Code Assist posts. Skills detect this extension at startup and use it when available; if absent, they fall back to default behavior.
+
+**Do NOT auto-install this extension.** If unavailable, silently fall back.
+
+### Detection
+
+```bash
+gh pr-review --version 2>/dev/null
+```
+
+Store the result as a boolean flag `has_pr_review_ext` (true if exit code 0, false otherwise). Also capture the repo identifier for `-R` flags:
+
+```bash
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+```
+
+### Command Reference
+
+#### Start a pending review
+
+```bash
+gh pr-review review --start -R ${REPO} <PR_NUMBER>
+```
+
+Returns a `REVIEW_ID` (integer) used by subsequent commands.
+
+#### Add an inline comment to a pending review
+
+```bash
+gh pr-review review --add-comment --review-id ${REVIEW_ID} \
+  --path <file_path> --line <line_number> \
+  --body "comment body" \
+  -R ${REPO} <PR_NUMBER>
+```
+
+- `--path`: file path relative to repo root (must exist in the diff)
+- `--line`: line number in the diff (must be a changed or context line)
+- Run sequentially — do NOT add comments in parallel
+
+#### Submit a pending review
+
+```bash
+gh pr-review review --submit --review-id ${REVIEW_ID} \
+  --event COMMENT \
+  --body "summary body" \
+  -R ${REPO} <PR_NUMBER>
+```
+
+- `--event`: one of `COMMENT`, `APPROVE`, `REQUEST_CHANGES`
+- The `--body` becomes the top-level review summary
+
+#### View review threads (structured JSON)
+
+```bash
+gh pr-review review view -R ${REPO} --pr <PR_NUMBER> --unresolved
+```
+
+Returns JSON array of threads with fields: `thread_id`, `path`, `line`, `body`, `is_resolved`.
+
+#### Reply to a review thread
+
+```bash
+gh pr-review comments reply <PR_NUMBER> -R ${REPO} \
+  --thread-id <THREAD_ID> --body "reply body"
+```
+
+#### Resolve a review thread
+
+```bash
+gh pr-review threads resolve --thread-id <THREAD_ID> -R ${REPO} <PR_NUMBER>
+```
+
+### Error Handling
+
+- If `--start` or `--add-comment` fails, abandon the inline review and fall back to the default `gh pr review --comment` approach.
+- If `threads resolve` fails, log and continue — never abort a fix loop over a resolution failure.
+- All commands require the repo flag `-R ${REPO}` to avoid ambiguity in detached-HEAD states.
+
+---
+
 ## Adding a New CLI
 
 To add support for a new external CLI agent:
@@ -245,3 +327,4 @@ To add support for a new external CLI agent:
    - Output cleanup rules
    - Known quirks
 2. No changes needed to the skill files — they dynamically read this catalog and build commands for each agent in the resolved roster.
+3. Non-agent tools (like `gh pr-review`) that support skills but are not review agents go in their own dedicated section (e.g., "PR Review Extension").
