@@ -6,8 +6,8 @@ A Claude Code plugin that orchestrates multiple AI agents (Codex, Gemini, OpenCo
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| **review-pr** | `/multi-agents:review-pr <PR>` | Multi-agent PR review — launches 4 agents in parallel to review a GitHub PR, then synthesizes findings into a single comment |
-| **round-table** | `/multi-agents:round-table <topic>` | Multi-agent panel discussion — 4 AI panelists with distinct roles debate a topic across multiple rounds |
+| **review-pr** | `/review-pr <PR>` | Multi-agent PR review — launches 4 agents in parallel to review a GitHub PR, then synthesizes findings into a single comment |
+| **round-table** | `/round-table <topic>` | Multi-agent panel discussion — 4 AI panelists with distinct roles debate a topic across multiple rounds |
 
 ## Prerequisites
 
@@ -24,18 +24,9 @@ Skills degrade gracefully — if a tool is missing, the skill skips it and conti
 
 ## Installation
 
-### From GitHub (recommended)
-
 ```bash
 claude plugin marketplace add quabug/multi-agents-plugin
 claude plugin install multi-agents@multi-agents-plugin
-```
-
-### From local path
-
-```bash
-claude plugin marketplace add /path/to/this/repo
-claude plugin install multi-agents@local
 ```
 
 ## Usage
@@ -45,8 +36,8 @@ claude plugin install multi-agents@local
 Review a GitHub PR with multiple AI agents in parallel:
 
 ```bash
-/multi-agents:review-pr 42
-/multi-agents:review-pr https://github.com/owner/repo/pull/42
+/review-pr 42
+/review-pr https://github.com/owner/repo/pull/42
 ```
 
 **What it does:**
@@ -62,8 +53,8 @@ Existing review comments are fed to each agent so they don't duplicate prior fee
 Host a structured multi-round panel discussion:
 
 ```bash
-/multi-agents:round-table "Should we use ECS or traditional OOP for our game engine?"
-/multi-agents:round-table "Microservices vs monolith for our new project"
+/round-table "Should we use ECS or traditional OOP for our game engine?"
+/round-table "Microservices vs monolith for our new project"
 ```
 
 **What it does:**
