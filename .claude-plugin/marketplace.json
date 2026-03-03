@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "local",
-  "description": "Local custom plugins",
+  "name": "multi-agents-plugin",
+  "description": "Claude Code plugin for multi-agent orchestration — PR reviews and panel discussions using Codex, Gemini, and OpenCode in parallel.",
   "owner": {
     "name": "quabug"
   },
