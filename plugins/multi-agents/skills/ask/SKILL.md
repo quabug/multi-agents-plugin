@@ -2,7 +2,7 @@
 name: ask
 description: Ask configured AI agents a question in parallel and display their responses. Optionally target a specific agent or model. Use when the user says "ask all agents", "ask codex", "ask gemini", "ask glm-5", or wants AI perspectives on a question.
 user-invocable: true
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Multi-Agent Ask
@@ -95,10 +95,19 @@ After all agents return:
 
 3. If any agent failed or timed out, note it briefly (e.g., "Codex: [TIMEOUT]" or "OpenCode (GLM-5): [ERROR: ...]") and continue with the others.
 
+4. **Add your own answer** — answer the user's question yourself as an additional perspective. Display it labeled as "Claude Code":
+
+   ```
+   ### Claude Code
+   {your_answer}
+   ```
+
+   Give your honest, independent opinion. Don't just echo or summarize what agents said — contribute your own analysis, knowledge, and perspective on the question.
+
 ### Step 4: Synthesis
 
-- **Multiple agents**: Provide a brief synthesis (3-5 sentences) — where agents agree, diverge, and key insights.
-- **Single agent**: Skip synthesis — just display the response.
+- **Multiple agents**: Provide a brief synthesis (3-5 sentences) — where agents (including yourself) agree, diverge, and key insights.
+- **Single agent**: Provide a brief comparison between the agent's response and your own — note agreements and differences.
 
 ## Error Handling
 

@@ -152,7 +152,7 @@ After all tools finish (or time out):
    - **Minor**: style, naming, documentation
 5. **Identify consensus**: issues flagged by 2+ tools are high-confidence
 6. **Dismiss false positives**: if a finding is clearly wrong given project context, dismiss it with reasoning
-7. **Add your own review insights** based on your reading of the diff, existing comments, and project knowledge
+7. **Add your own independent review**: Review the diff yourself as an additional reviewer. Identify issues the agents may have missed, validate or challenge their findings, and contribute your own perspective on correctness, architecture, and edge cases. Your findings are merged into the issues list on equal footing with agent findings
 
 #### 3c. Check Exit Condition
 

@@ -98,7 +98,7 @@ After all tools finish:
    - **Minor**: style, naming, documentation
 4. **Identify consensus**: issues flagged by 2+ tools are high-confidence
 5. **Dismiss false positives**: if a finding is clearly wrong given project context, dismiss it with reasoning
-6. **Add your own review insights** based on your reading of the diff, existing comments, and project knowledge
+6. **Add your own independent review**: Review the diff yourself as an additional reviewer. Identify issues the agents may have missed, validate or challenge their findings, and contribute your own perspective on correctness, architecture, and edge cases. Your findings are treated on equal footing with agent findings — label them as sourced by "Claude Code" in the attribution table
 7. **Classify findings for inline posting** (only when `has_pr_review_ext` is true):
    - Parse the diff to build a map of `{file → [changed line numbers]}`
    - For each synthesized finding, check if it has a specific `{path, line}` reference:
@@ -154,6 +154,10 @@ Post inline comments on specific file+line locations, with a summary body for ge
    | [issue] | x |   | x |
 
    ---
+   ### Claude Code's Own Findings
+   [Your independent findings that agents missed or that you want to highlight — if none beyond what agents found, state "No additional findings."]
+
+   ---
    Reviewed by: Claude Code + {display_name_1} + {display_name_2} + ...
    EOF
    )" \
@@ -180,10 +184,13 @@ gh pr review <PR_NUMBER> --comment --body "$(cat <<'EOF'
 ### Notes
 [Any dismissed false positives or context-specific observations]
 
+### Claude Code's Own Findings
+[Your independent findings that agents missed or that you want to highlight — if none beyond what agents found, state "No additional findings."]
+
 ### Agent Attribution
-| Finding | {display_name_1} | {display_name_2} | ... |
-|---------|---|---|---|
-| [issue] | x |   | x |
+| Finding | Claude Code | {display_name_1} | {display_name_2} | ... |
+|---------|---|---|---|---|
+| [issue] | x | x |   | x |
 
 ---
 Reviewed by: Claude Code + {display_name_1} + {display_name_2} + ...
