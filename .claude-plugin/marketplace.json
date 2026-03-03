@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "local",
+  "description": "Local custom plugins",
+  "owner": {
+    "name": "quabug"
+  },
+  "plugins": [
+    {
+      "name": "ma",
+      "description": "Multi-agent orchestration plugin. Bundles skills that coordinate multiple AI agents (Codex, Gemini, OpenCode) for code reviews and panel discussions.",
+      "source": "./plugins/ma",
+      "category": "productivity"
+    }
+  ]
+}
