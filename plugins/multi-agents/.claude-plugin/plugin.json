@@ -1,7 +1,7 @@
 {
   "name": "multi-agents",
-  "description": "Multi-agent orchestration plugin. Bundles skills that coordinate multiple AI agents (Codex, Gemini, OpenCode) in parallel for code reviews, panel discussions, and brainstorming.",
-  "version": "0.1.0",
+  "description": "Multi-agent orchestration plugin. Bundles skills that coordinate configurable AI agents in parallel for code reviews, panel discussions, and brainstorming. Agents are configured via CLAUDE.md or auto-detected from PATH.",
+  "version": "0.2.0",
   "author": {
     "name": "quabug",
     "url": "https://github.com/quabug"
@@ -13,6 +13,7 @@
     "claude-code",
     "plugin",
     "multi-agent",
+    "configurable",
     "codex",
     "gemini",
     "opencode",
