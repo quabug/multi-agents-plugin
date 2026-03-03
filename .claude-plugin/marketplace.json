@@ -9,8 +9,13 @@
     {
       "name": "ma",
       "description": "Multi-agent orchestration plugin. Bundles skills that coordinate multiple AI agents (Codex, Gemini, OpenCode) for code reviews and panel discussions.",
+      "version": "0.1.0",
+      "author": {
+        "name": "quabug"
+      },
       "source": "./plugins/ma",
-      "category": "productivity"
+      "category": "productivity",
+      "homepage": "https://github.com/quabug/multi-agents-plugin"
     }
   ]
 }
