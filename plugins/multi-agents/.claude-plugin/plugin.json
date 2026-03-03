@@ -1,7 +1,7 @@
 {
   "name": "multi-agents",
-  "description": "Multi-agent orchestration plugin. Bundles skills that coordinate configurable AI agents in parallel for questions, code reviews, and panel discussions. Agents are configured via CLAUDE.md or auto-detected from PATH.",
-  "version": "0.3.0",
+  "description": "Multi-agent orchestration plugin. Bundles skills that coordinate configurable AI agents in parallel for questions, code reviews, PR fixes, and panel discussions. Agents are configured via CLAUDE.md or auto-detected from PATH.",
+  "version": "0.5.0",
   "author": {
     "name": "quabug",
     "url": "https://github.com/quabug"
@@ -19,6 +19,7 @@
     "opencode",
     "ask",
     "code-review",
+    "fix-pr",
     "round-table"
   ]
 }

@@ -7,6 +7,7 @@ A Claude Code plugin that orchestrates configurable AI agents in parallel for co
 | Skill | Command | Description |
 |-------|---------|-------------|
 | **ask** | `/ask <question>` | Ask all configured agents a question in parallel and display their responses with a brief synthesis |
+| **fix-pr** | `/fix-pr <PR>` | Iterative multi-agent PR fix — reviews a PR with multiple agents, fixes critical/major issues, commits, and re-reviews until clean |
 | **review-pr** | `/review-pr <PR>` | Multi-agent PR review — launches configured agents in parallel to review a GitHub PR, then synthesizes findings into a single comment |
 | **round-table** | `/round-table <topic>` | Multi-agent panel discussion — configured AI panelists with distinct roles debate a topic across multiple rounds |
 
@@ -64,6 +65,31 @@ claude plugin install multi-agents@multi-agents-plugin
 ```
 
 ## Usage
+
+### Fix PR
+
+Review a GitHub PR with multiple AI agents, then iteratively fix the issues found:
+
+```bash
+/fix-pr 42
+/fix-pr https://github.com/owner/repo/pull/42
+```
+
+**What it does:**
+1. Resolves the agent roster (from config or auto-detection)
+2. Checks out the PR branch and fetches existing review comments
+3. Launches all configured agents in parallel to review the current diff
+4. Synthesizes findings by severity — presents critical/major issues to user for confirmation
+5. Fixes all critical and major issues (including unresolved human reviewer feedback), then commits
+6. Re-reviews the updated diff — repeats until clean or max 3 iterations
+7. Reports a summary of iterations, issues fixed, and commits made
+
+Key differences from `review-pr`:
+- **Fixes code** instead of posting a review comment
+- **Iterative** — reviews, fixes, re-reviews in a loop
+- **Includes human feedback** — existing PR comments are treated as first-class issues to resolve
+- **User confirmation** — asks before applying fixes each iteration
+- **Does not push** — you decide when to push the fix commits
 
 ### PR Review
 
@@ -128,6 +154,8 @@ plugins/
     └── skills/
         ├── ask/
         │   └── SKILL.md      <- Ask all agents skill
+        ├── fix-pr/
+        │   └── SKILL.md      <- Iterative PR fix skill
         ├── review-pr/
         │   └── SKILL.md      <- PR review skill
         └── round-table/

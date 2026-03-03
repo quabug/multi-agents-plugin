@@ -201,9 +201,36 @@ All agent commands follow these conventions:
 |---|---|
 | ANSI stripping | Pipe through `sed 's/\x1b\[[0-9;]*m//g'` |
 | Timeout | 120-second timeout via Bash tool's `timeout` parameter (do NOT use the `timeout` shell command — unavailable on macOS) |
+| Background dispatch | Use `run_in_background: true` on each Bash call when launching multiple agents in parallel |
 | Stderr capture | Append `2>&1` to capture both stdout and stderr |
 | Error handling | If a CLI is not found (`which` fails), skip it and continue with others |
 | Session fallback | If resume/continue fails, fall back to fresh session with full context summary |
+
+### Result Collection
+
+When collecting results from background agent tasks:
+
+- **Collect sequentially**: Call `TaskOutput` one at a time (one per message, NOT multiple in a single parallel message). If one `TaskOutput` call errors, all sibling tool calls in the same message are cancelled — this cascading failure loses all results.
+- **Alternative**: Read the output files directly with the Read tool (the file path is returned when the background task is launched).
+- **Timeouts**: If an agent exceeds the 120-second timeout, it is automatically terminated. Note it as "timed out" and proceed with the rest. Use `TaskStop` to terminate any agents still running after collection.
+- **Subsequent iterations** (for iterative skills like fix-pr): Consider skipping agents that timed out or failed in a previous iteration to avoid wasting time.
+
+### Output Validation
+
+After collecting and cleaning each agent's output, validate that it contains useful content:
+
+- **Useless output**: Some agents may produce no actionable findings — they echo back the input, produce only metadata/thinking blocks, hit token limits before generating findings, or fail silently with a zero exit code. If an agent's output contains no structured findings after applying cleanup rules, discard it and note "{display_name} produced no actionable output."
+- **Do NOT treat empty/useless output as "no issues found"**: Only explicit statements like "No critical or major issues found" count as a clean bill of health. Absence of findings in broken output is not evidence of absence of issues.
+- **Model name errors**: Some providers (especially OpenCode) have case-sensitive model names. If an agent fails with a "model not found" or "did you mean" error, note the error, skip that agent, and report the misconfigured model name to the user so they can fix their CLAUDE.md config. Do not retry with a guessed name.
+
+### PR Comment Filtering
+
+When fetching existing PR review comments (for skills like review-pr and fix-pr), filter out noise before analysis:
+
+- **Skip CI bot noise**: Comments from bots posting coverage reports, build status, formatting output, or deployment previews (e.g., `github-actions[bot]`, `codecov[bot]`, `netlify[bot]`). These are informational, not actionable code feedback.
+- **Skip quota/limit messages**: Bot comments about usage limits, credits, or billing (e.g., "usage limits reached", "credits must be used").
+- **Skip auto-generated summaries**: HTML-heavy bot output, badge images, collapsible coverage tables.
+- **Keep actionable review feedback**: Comments from human reviewers and code review bots that provide severity-tagged findings, specific code suggestions, or requested changes (e.g., `gemini-code-assist[bot]` with critical/major/minor labels).
 
 ---
 
