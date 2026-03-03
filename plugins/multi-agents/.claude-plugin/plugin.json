@@ -1,5 +1,5 @@
 {
-  "name": "ma",
+  "name": "multi-agents",
   "description": "Multi-agent orchestration plugin. Bundles skills that coordinate multiple AI agents (Codex, Gemini, OpenCode) in parallel for code reviews, panel discussions, and brainstorming.",
   "version": "0.1.0",
   "author": {

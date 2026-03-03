@@ -6,8 +6,8 @@ A Claude Code plugin that orchestrates multiple AI agents (Codex, Gemini, OpenCo
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| **review-pr** | `/ma:review-pr <PR>` | Multi-agent PR review — launches 4 agents in parallel to review a GitHub PR, then synthesizes findings into a single comment |
-| **round-table** | `/ma:round-table <topic>` | Multi-agent panel discussion — 4 AI panelists with distinct roles debate a topic across multiple rounds |
+| **review-pr** | `/multi-agents:review-pr <PR>` | Multi-agent PR review — launches 4 agents in parallel to review a GitHub PR, then synthesizes findings into a single comment |
+| **round-table** | `/multi-agents:round-table <topic>` | Multi-agent panel discussion — 4 AI panelists with distinct roles debate a topic across multiple rounds |
 
 ## Prerequisites
 
@@ -28,14 +28,14 @@ Skills degrade gracefully — if a tool is missing, the skill skips it and conti
 
 ```bash
 claude plugin marketplace add quabug/multi-agents-plugin
-claude plugin install ma@multi-agents-plugin
+claude plugin install multi-agents@multi-agents-plugin
 ```
 
 ### From local path
 
 ```bash
 claude plugin marketplace add /path/to/this/repo
-claude plugin install ma@local
+claude plugin install multi-agents@local
 ```
 
 ## Usage
@@ -45,8 +45,8 @@ claude plugin install ma@local
 Review a GitHub PR with multiple AI agents in parallel:
 
 ```bash
-/ma:review-pr 42
-/ma:review-pr https://github.com/owner/repo/pull/42
+/multi-agents:review-pr 42
+/multi-agents:review-pr https://github.com/owner/repo/pull/42
 ```
 
 **What it does:**
@@ -62,12 +62,12 @@ Existing review comments are fed to each agent so they don't duplicate prior fee
 Host a structured multi-round panel discussion:
 
 ```bash
-/ma:round-table "Should we use ECS or traditional OOP for our game engine?"
-/ma:round-table "Microservices vs monolith for our new project"
+/multi-agents:round-table "Should we use ECS or traditional OOP for our game engine?"
+/multi-agents:round-table "Microservices vs monolith for our new project"
 ```
 
 **What it does:**
-1. Assigns distinct roles to 4 panelists (Codex, Gemini, OpenCode, Claude) from a [role catalog](plugins/ma/skills/round-table/references/roles.md)
+1. Assigns distinct roles to 4 panelists (Codex, Gemini, OpenCode, Claude) from a [role catalog](plugins/multi-agents/skills/round-table/references/roles.md)
 2. Runs multi-round debates — each round poses a focused question
 3. Claude participates as a panelist AND moderates, synthesizing each round
 4. Saves a full markdown transcript to the working directory
@@ -79,7 +79,7 @@ Host a structured multi-round panel discussion:
 .claude-plugin/
 └── marketplace.json          ← Marketplace manifest
 plugins/
-└── ma/
+└── multi-agents/
     ├── .claude-plugin/
     │   └── plugin.json       ← Plugin manifest
     └── skills/
