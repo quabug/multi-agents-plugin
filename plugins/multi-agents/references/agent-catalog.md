@@ -1,6 +1,6 @@
 # Agent Catalog
 
-Single source of truth for all supported external CLI agents. Both skills read this file during setup to build commands for the resolved agent roster.
+Single source of truth for all supported external CLI agents. All skills read this file during setup to build commands for the resolved agent roster.
 
 ---
 

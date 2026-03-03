@@ -6,6 +6,7 @@ A Claude Code plugin that orchestrates configurable AI agents in parallel for co
 
 | Skill | Command | Description |
 |-------|---------|-------------|
+| **ask** | `/ask <question>` | Ask all configured agents a question in parallel and display their responses with a brief synthesis |
 | **review-pr** | `/review-pr <PR>` | Multi-agent PR review — launches configured agents in parallel to review a GitHub PR, then synthesizes findings into a single comment |
 | **round-table** | `/round-table <topic>` | Multi-agent panel discussion — configured AI panelists with distinct roles debate a topic across multiple rounds |
 
@@ -82,6 +83,21 @@ Review a GitHub PR with multiple AI agents in parallel:
 
 Existing review comments are fed to each agent so they don't duplicate prior feedback.
 
+### Ask
+
+Ask all configured agents a question in parallel:
+
+```bash
+/ask "What are the pros and cons of using ref structs in C#?"
+/ask "How should I structure error handling in this codebase?"
+```
+
+**What it does:**
+1. Resolves the agent roster (from config or auto-detection)
+2. Sends the question to all agents in parallel
+3. Displays each agent's response with clear labels
+4. Provides a brief synthesis highlighting agreements and divergences
+
 ### Round Table
 
 Host a structured multi-round panel discussion:
@@ -110,6 +126,8 @@ plugins/
     ├── references/
     │   └── agent-catalog.md  <- Agent CLI catalog (shared by all skills)
     └── skills/
+        ├── ask/
+        │   └── SKILL.md      <- Ask all agents skill
         ├── review-pr/
         │   └── SKILL.md      <- PR review skill
         └── round-table/
