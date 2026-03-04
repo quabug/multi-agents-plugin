@@ -1,6 +1,6 @@
 # Multi-Agents Plugin for Claude Code
 
-A Claude Code plugin that orchestrates configurable AI agents in parallel for code reviews and panel discussions. Supports Codex, Gemini, OpenCode, and any future CLIs via the agent catalog.
+A Claude Code plugin that orchestrates configurable AI agents in parallel for code reviews and panel discussions. Supports Codex, Gemini, OpenCode, Pi, and any future CLIs via the agent catalog.
 
 ## Skills
 
@@ -21,6 +21,7 @@ Configure which agents to use via a `## Multi-Agents` section in your CLAUDE.md 
 - gemini
 - opencode: bailian-coding-plan/glm-5
 - opencode: bailian-coding-plan/kimi-k2.5
+- pi: bailian-coding-plan/qwen3.5-plus
 ```
 
 **Syntax:** `- {cli-name}` or `- {cli-name}: {model}`
@@ -46,6 +47,7 @@ One default entry (no model override) is added for each CLI found on `$PATH`. Sk
 | [Codex](https://github.com/openai/codex) | `codex` | `npm install -g @openai/codex` | OpenAI's coding agent |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | `npm install -g @anthropic-ai/gemini-cli` | Google's Gemini agent |
 | [OpenCode](https://github.com/opencode-ai/opencode) | `opencode` | See repo for install | Multi-model agent (supports `-m model` flag) |
+| [Pi](https://github.com/themaximal1st/pi) | `pi` | `brew install pi` or see repo | Multi-model agent (supports `--model provider/model` flag) |
 
 See [`references/agent-catalog.md`](plugins/multi-agents/references/agent-catalog.md) for full CLI details, command templates, and instructions for adding new agents.
 

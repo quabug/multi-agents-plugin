@@ -67,7 +67,7 @@ For each agent in the (filtered) roster, build the command using the agent's **f
 - **Codex**: Use `--full-auto` approval flag. Use heredoc prompt passing. Pass `-C {git_dir}`.
 - **Gemini**: Use `-y` approval flag. Use heredoc prompt passing.
 - **OpenCode**: Use direct quoted string (no heredoc). Include `-m {model}` flag if a model is configured.
-- **Pi**: Use `-p --no-tools` flags. Use heredoc prompt passing. Include `--model {model}` if a model is configured.
+- **Pi**: Use `-p --no-tools` flags. Use direct quoted string (no heredoc). Include `--model {model}` if a model is configured.
 
 **Prompt** (adapt per agent's prompt passing strategy):
 

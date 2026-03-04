@@ -205,33 +205,26 @@ Where `{model_flag}` is `-m {model}` if a model is configured, or empty string i
 
 **Fresh session:**
 ```bash
-pi -p --no-tools "$(cat <<'PROMPT_EOF'
-{prompt}
-PROMPT_EOF
-)" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+pi -p --no-tools {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
 ```
 
 **Session resume (round-table only):**
 ```bash
-pi -p --no-tools --continue "$(cat <<'PROMPT_EOF'
-{prompt}
-PROMPT_EOF
-)" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+pi -p --no-tools --continue {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
 ```
 
 **One-shot (review-pr):**
 ```bash
-pi -p --no-tools --model {model} "$(cat <<'PROMPT_EOF'
-{prompt}
-PROMPT_EOF
-)"
+pi -p --no-tools --model {model} "{prompt_flattened}"
 ```
 
-Where `{model}` is specified via `--model {model}` if a model is configured, or omitted to use the default provider.
+Where `{model_flag}` is `--model {model}` if a model is configured, or empty string if no model specified.
 
 #### Prompt Passing
-- Use heredoc pattern `"$(cat <<'PROMPT_EOF' ... PROMPT_EOF)"` for multi-line prompts.
-- Can reference files directly in prompts using `@file` syntax (e.g., `@diff.patch`), but prefer heredoc for consistency with other agents.
+- **Do NOT use heredoc patterns.** Pass the prompt as a direct quoted positional argument.
+- Heredoc + pipe patterns cause Pi to hang indefinitely with no output in zsh.
+- `{prompt_flattened}` means the prompt text with newlines preserved but passed as a single quoted argument.
+- Can reference files directly in prompts using `@file` syntax (e.g., `@diff.patch`).
 
 #### Session Resume
 - `--continue` flag resumes the previous session.
