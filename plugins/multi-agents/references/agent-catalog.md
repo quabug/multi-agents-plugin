@@ -122,7 +122,7 @@ PROMPT_EOF
 gemini -p "$(cat <<'PROMPT_EOF'
 {prompt}
 PROMPT_EOF
-)" -y --resume latest 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+)" -y --resume {session_uuid} 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
 ```
 
 **One-shot (review-pr):**
@@ -135,7 +135,8 @@ gemini --yolo -p "{prompt}"
 - Can reference files directly in prompts (unlike Codex).
 
 #### Session Resume
-- `--resume latest` works reliably.
+- **Do NOT use `--resume latest`.** It resumes the most recent session, which causes cross-contamination when multiple Gemini agents run in parallel.
+- **Use `--resume {uuid}`** in Round 2+ to resume a specific session. After Round 1 completes, capture each agent's session UUID by running `gemini --list-sessions` — output shows index, title (contains prompt text), and UUID in brackets. Match sessions to agents by title/prompt content.
 - **Fallback:** If resume fails, fall back to fresh session with full context summary.
 
 #### Output Cleanup
@@ -191,7 +192,6 @@ Where `{model_flag}` is `-m {model}` if a model is configured, or empty string i
 
 #### Known Quirks
 - May run longer than other CLIs. If the Bash tool auto-backgrounds it, use `TaskOutput` to wait for completion (up to 120s), then `TaskStop` if it exceeds the timeout.
-- **Session isolation is critical** when running multiple OpenCode agents in parallel. OpenCode uses SQLite for session storage — parallel writes can cause `"database is locked"` errors, and `--continue` resumes the same "last session" for all agents. Always use `--session {id}` for Round 2+. Launch agents with a slight stagger (1-2 second gap between dispatches) to reduce database contention during session creation.
 
 ---
 
@@ -242,7 +242,6 @@ Where `{model_flag}` is `--model {model}` if a model is configured, or empty str
 #### Known Quirks
 - Uses `--no-tools` flag for review/ask tasks to prevent Pi from trying to execute tools (read, bash, edit, write) when only a text response is needed.
 - Default provider is Google (Gemini). Use `--model provider/model` to switch providers (e.g., `--model openai/gpt-4o`, `--model anthropic/claude-sonnet-4-5-20250514`).
-- **Session isolation is critical** when running multiple Pi agents in parallel. Pi's `--continue` flag resumes the most recently modified session file by mtime, which causes all parallel agents to resume a single session. Always use `--session-dir` (Round 1) and `--session` (Round 2+) to isolate sessions.
 
 ---
 
