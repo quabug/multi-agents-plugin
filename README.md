@@ -34,7 +34,7 @@ Configure which agents to use via a `## Multi-Agents` section in your CLAUDE.md 
 If no `## Multi-Agents` section is found, the plugin auto-detects available CLIs:
 
 ```bash
-which codex gemini opencode
+which codex gemini opencode pi
 ```
 
 One default entry (no model override) is added for each CLI found on `$PATH`. Skills degrade gracefully — if a tool is missing, the skill skips it and continues with the others.

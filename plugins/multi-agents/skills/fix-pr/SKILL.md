@@ -22,7 +22,7 @@ Determine the agent roster before doing anything else.
 
 2. If no `## Multi-Agents` section is found, auto-detect:
    ```bash
-   which codex gemini opencode 2>&1
+   which codex gemini opencode pi 2>&1
    ```
    Add one default entry (no model) for each CLI found on `$PATH`.
 

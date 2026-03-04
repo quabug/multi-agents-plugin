@@ -40,7 +40,7 @@ Parse the user's argument to determine whether a specific agent is targeted:
 
 2. If no `## Multi-Agents` section is found, auto-detect:
    ```bash
-   which codex gemini opencode 2>&1
+   which codex gemini opencode pi 2>&1
    ```
    Add one default entry (no model) for each CLI found on `$PATH`.
 
@@ -67,6 +67,7 @@ For each agent in the (filtered) roster, build the command using the agent's **f
 - **Codex**: Use `--full-auto` approval flag. Use heredoc prompt passing. Pass `-C {git_dir}`.
 - **Gemini**: Use `-y` approval flag. Use heredoc prompt passing.
 - **OpenCode**: Use direct quoted string (no heredoc). Include `-m {model}` flag if a model is configured.
+- **Pi**: Use `-p --no-tools` flags. Use heredoc prompt passing. Include `--model {model}` if a model is configured.
 
 **Prompt** (adapt per agent's prompt passing strategy):
 

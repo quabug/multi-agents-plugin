@@ -39,7 +39,7 @@ Users configure which agents to use via a `## Multi-Agents` section in their CLA
 If no `## Multi-Agents` section is found in any CLAUDE.md, auto-detect available CLIs:
 
 ```bash
-which codex gemini opencode 2>&1
+which codex gemini opencode pi 2>&1
 ```
 
 For each CLI found on `$PATH`, add one default entry (no model override). This means auto-detection produces at most one entry per CLI binary.
@@ -190,6 +190,60 @@ Where `{model_flag}` is `-m {model}` if a model is configured, or empty string i
 
 #### Known Quirks
 - May run longer than other CLIs. If the Bash tool auto-backgrounds it, use `TaskOutput` to wait for completion (up to 120s), then `TaskStop` if it exceeds the timeout.
+
+---
+
+### Pi
+
+- **Binary:** `pi`
+- **Install:** See [pi](https://github.com/themaximal1st/pi) repo (also available via Homebrew)
+- **Approval mode:** None needed — `-p` (print/non-interactive) mode has no interactive prompts.
+- **Model flag:** `--model {model}` to specify model (e.g., `openai/gpt-4o`, `sonnet`, `gemini-2.5-pro`). Supports `provider/model` shorthand.
+- **Requires git:** No
+
+#### Commands
+
+**Fresh session:**
+```bash
+pi -p --no-tools "$(cat <<'PROMPT_EOF'
+{prompt}
+PROMPT_EOF
+)" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+```
+
+**Session resume (round-table only):**
+```bash
+pi -p --no-tools --continue "$(cat <<'PROMPT_EOF'
+{prompt}
+PROMPT_EOF
+)" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+```
+
+**One-shot (review-pr):**
+```bash
+pi -p --no-tools --model {model} "$(cat <<'PROMPT_EOF'
+{prompt}
+PROMPT_EOF
+)"
+```
+
+Where `{model}` is specified via `--model {model}` if a model is configured, or omitted to use the default provider.
+
+#### Prompt Passing
+- Use heredoc pattern `"$(cat <<'PROMPT_EOF' ... PROMPT_EOF)"` for multi-line prompts.
+- Can reference files directly in prompts using `@file` syntax (e.g., `@diff.patch`), but prefer heredoc for consistency with other agents.
+
+#### Session Resume
+- `--continue` flag resumes the previous session.
+- **Fallback:** If `--continue` fails, fall back to fresh session with full context summary.
+
+#### Output Cleanup
+- Output is generally clean in `-p` mode. Strip ANSI codes as with other agents.
+- Remove any startup/loading messages if present.
+
+#### Known Quirks
+- Uses `--no-tools` flag for review/ask tasks to prevent Pi from trying to execute tools (read, bash, edit, write) when only a text response is needed.
+- Default provider is Google (Gemini). Use `--model provider/model` to switch providers (e.g., `--model openai/gpt-4o`, `--model anthropic/claude-sonnet-4-5-20250514`).
 
 ---
 
