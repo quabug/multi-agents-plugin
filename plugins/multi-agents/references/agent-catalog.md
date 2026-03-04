@@ -165,7 +165,7 @@ opencode run {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
 
 **Session resume (round-table only):**
 ```bash
-opencode run --continue {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+opencode run --session {session_id} {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
 ```
 
 **One-shot (review-pr):**
@@ -182,14 +182,16 @@ Where `{model_flag}` is `-m {model}` if a model is configured, or empty string i
 - `{prompt_flattened}` means the prompt text with newlines preserved but passed as a single quoted argument.
 
 #### Session Resume
-- `--continue` flag, placed before the message: `opencode run --continue "prompt"`.
-- **Fallback:** If `--continue` fails, fall back to fresh session with full context summary.
+- **Do NOT use `--continue`.** It resumes the most recent session, which causes cross-contamination when multiple OpenCode agents run in parallel. Additionally, parallel `--continue` can cause `"database is locked"` errors (SQLite contention).
+- **Use `--session {session_id}`** in Round 2+ to resume a specific session. After Round 1 completes, capture each agent's session ID by running `opencode session list` and matching the most recent sessions (sorted by Updated time) to the agents that just ran. Session IDs have the format `ses_...`.
+- **Fallback:** If `--session` fails, fall back to fresh session with full context summary.
 
 #### Output Cleanup
 - Remove the `> build · {model}` header line.
 
 #### Known Quirks
 - May run longer than other CLIs. If the Bash tool auto-backgrounds it, use `TaskOutput` to wait for completion (up to 120s), then `TaskStop` if it exceeds the timeout.
+- **Session isolation is critical** when running multiple OpenCode agents in parallel. OpenCode uses SQLite for session storage — parallel writes can cause `"database is locked"` errors, and `--continue` resumes the same "last session" for all agents. Always use `--session {id}` for Round 2+. Launch agents with a slight stagger (1-2 second gap between dispatches) to reduce database contention during session creation.
 
 ---
 
