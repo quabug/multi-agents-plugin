@@ -80,7 +80,7 @@ Pass the user's question directly — do not wrap it in additional instructions 
 
 **Command conventions** (apply to all agents):
 - Pipe through `sed 's/\x1b\[[0-9;]*m//g'` to strip ANSI escape codes
-- Use 120-second timeout via the Bash tool's `timeout` parameter
+- Use 600-second (10 minute) timeout via the Bash tool's `timeout` parameter
 - Append `2>&1` to capture both stdout and stderr
 
 ### Step 3: Collect and Display Responses
@@ -114,7 +114,7 @@ After all agents return:
 ## Error Handling
 
 - If a CLI is not found, skip it and continue with others
-- If an agent times out (>120s), use `TaskOutput` to wait; if still running, use `TaskStop` and note `[TIMEOUT]`
+- If an agent times out (>600s), use `TaskOutput` to wait; if still running, use `TaskStop` and note `[TIMEOUT]`
 - If the targeted agent is not found in the roster, list available agents and ask the user to pick one
 - If all agents fail, answer the question yourself
 - For agent-specific quirks, refer to the catalog

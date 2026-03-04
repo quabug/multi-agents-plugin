@@ -119,7 +119,7 @@ For each agent in the roster, build the review command using the agent's **one-s
 - **Agents that cannot reliably read files** (e.g., Codex per the catalog): Embed the diff AND existing comments inline in the prompt via `printf` + `cat`.
 - **Agents that can reference files** (e.g., Gemini, OpenCode per the catalog): Reference the diff and comments files by path in the prompt.
 - **Agents with a model override**: Include the model flag (e.g., `-m {model}` for OpenCode).
-- **Set `timeout: 120000`** (120 seconds) on each Bash call per the catalog's common conventions.
+- **Set `timeout: 600000`** (600 seconds / 10 minutes) on each Bash call per the catalog's common conventions.
 
 **Review prompt** (adapt per agent's prompt passing strategy from the catalog):
 

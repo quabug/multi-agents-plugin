@@ -54,7 +54,7 @@ All agent commands follow these conventions:
 | Convention | Detail |
 |---|---|
 | ANSI stripping | Pipe through `sed 's/\x1b\[[0-9;]*m//g'` |
-| Timeout | 120-second timeout via Bash tool's `timeout` parameter (do NOT use the `timeout` shell command — unavailable on macOS) |
+| Timeout | 600-second (10 minute) timeout via Bash tool's `timeout` parameter (do NOT use the `timeout` shell command — unavailable on macOS) |
 | Background dispatch | Use `run_in_background: true` on each Bash call when launching multiple agents in parallel |
 | Stderr capture | Append `2>&1` to capture both stdout and stderr |
 | Error handling | If a CLI is not found (`which` fails), skip it and continue with others |
@@ -66,7 +66,7 @@ When collecting results from background agent tasks:
 
 - **Collect sequentially**: Call `TaskOutput` one at a time (one per message, NOT multiple in a single parallel message). If one `TaskOutput` call errors, all sibling tool calls in the same message are cancelled — this cascading failure loses all results.
 - **Alternative**: Read the output files directly with the Read tool (the file path is returned when the background task is launched).
-- **Timeouts**: If an agent exceeds the 120-second timeout, it is automatically terminated. Note it as "timed out" and proceed with the rest. Use `TaskStop` to terminate any agents still running after collection.
+- **Timeouts**: If an agent exceeds the 600-second timeout, it is automatically terminated. Note it as "timed out" and proceed with the rest. Use `TaskStop` to terminate any agents still running after collection.
 - **Subsequent iterations** (for iterative skills like fix-pr): Consider skipping agents that timed out or failed in a previous iteration to avoid wasting time.
 
 ### Output Validation

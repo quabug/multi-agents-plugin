@@ -40,4 +40,4 @@ Where `{model_flag}` is `-m {model}` if a model is configured, or empty string i
 - Remove the `> build · {model}` header line.
 
 ## Known Quirks
-- May run longer than other CLIs. If the Bash tool auto-backgrounds it, use `TaskOutput` to wait for completion (up to 120s), then `TaskStop` if it exceeds the timeout.
+- May run longer than other CLIs. If the Bash tool auto-backgrounds it, use `TaskOutput` to wait for completion (up to 600s), then `TaskStop` if it exceeds the timeout.

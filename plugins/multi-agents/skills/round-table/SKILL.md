@@ -75,7 +75,7 @@ Minimize tool call rounds. Combine independent checks into parallel calls.
 
    **Command conventions** (apply to all agents):
    - Pipe through `sed 's/\x1b\[[0-9;]*m//g'` to strip ANSI escape codes
-   - Use 120-second timeout via the Bash tool's `timeout` parameter (do NOT use the `timeout` shell command — unavailable on macOS)
+   - Use 600-second (10 minute) timeout via the Bash tool's `timeout` parameter (do NOT use the `timeout` shell command — unavailable on macOS)
    - Append `2>&1` to capture both stdout and stderr
 
 3. **Extract clean responses**: For each agent, apply the output cleanup rules defined in the catalog.
@@ -164,7 +164,7 @@ Note: Round 2+ prompts are intentionally shorter because the CLI tool's session 
 |---|---|
 | CLI not found (`which` fails) | Skip participant, warn user, continue with others |
 | Agent requires git but no git dir | Create temp git repo at `/tmp/round-table-workspace`, retry with appropriate flag |
-| Timeout (>120s) or Bash tool auto-backgrounds | Use `TaskOutput` to wait; if still running after 120s, use `TaskStop` and record `[TIMEOUT]` in transcript |
+| Timeout (>600s) or Bash tool auto-backgrounds | Use `TaskOutput` to wait; if still running after 600s, use `TaskStop` and record `[TIMEOUT]` in transcript |
 | Non-zero exit / empty output | Capture stderr, record `[ERROR: ...]` in transcript, continue |
 | All external agents fail in a round | Alert user via `AskUserQuestion`, offer retry or end discussion |
 | Session resume fails | Fall back to fresh session with full context summary (per catalog) |
