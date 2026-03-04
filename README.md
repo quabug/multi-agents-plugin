@@ -1,6 +1,6 @@
 # Multi-Agents Plugin for Claude Code
 
-A Claude Code plugin that orchestrates configurable AI agents in parallel for code reviews and panel discussions. Supports Codex, Gemini, OpenCode, Pi, and any future CLIs via the agent catalog.
+A Claude Code plugin that orchestrates configurable AI agents in parallel for code reviews and panel discussions. Supports Codex, Gemini, OpenCode, Pi, Qwen, and any future CLIs via the agent catalog.
 
 ## Skills
 
@@ -22,6 +22,7 @@ Configure which agents to use via a `## Multi-Agents` section in your CLAUDE.md 
 - opencode: bailian-coding-plan/glm-5
 - opencode: bailian-coding-plan/kimi-k2.5
 - pi: bailian-coding-plan/qwen3.5-plus
+- qwen
 ```
 
 **Syntax:** `- {cli-name}` or `- {cli-name}: {model}`
@@ -35,7 +36,7 @@ Configure which agents to use via a `## Multi-Agents` section in your CLAUDE.md 
 If no `## Multi-Agents` section is found, the plugin auto-detects available CLIs:
 
 ```bash
-which codex gemini opencode pi
+which codex gemini opencode pi qwen
 ```
 
 One default entry (no model override) is added for each CLI found on `$PATH`. Skills degrade gracefully — if a tool is missing, the skill skips it and continues with the others.
@@ -48,8 +49,9 @@ One default entry (no model override) is added for each CLI found on `$PATH`. Sk
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | `npm install -g @anthropic-ai/gemini-cli` | Google's Gemini agent |
 | [OpenCode](https://github.com/opencode-ai/opencode) | `opencode` | See repo for install | Multi-model agent (supports `-m model` flag) |
 | [Pi](https://github.com/themaximal1st/pi) | `pi` | `brew install pi` or see repo | Multi-model agent (supports `--model provider/model` flag) |
+| [Qwen Code](https://github.com/anthropics/qwen-code) | `qwen` | `npm install -g @anthropic-ai/qwen-code` | Alibaba's Qwen agent (supports `-m model` flag) |
 
-See [`references/agent-catalog.md`](plugins/multi-agents/references/agent-catalog.md) for full CLI details, command templates, and instructions for adding new agents.
+See [`references/agent-catalog.md`](plugins/multi-agents/references/agent-catalog.md) for shared conventions and per-agent files (`references/{cli-name}.md`) for command templates, quirks, and full CLI details.
 
 ## Prerequisites
 
@@ -152,7 +154,12 @@ plugins/
     ├── .claude-plugin/
     │   └── plugin.json       <- Plugin manifest
     ├── references/
-    │   └── agent-catalog.md  <- Agent CLI catalog (shared by all skills)
+    │   ├── agent-catalog.md  <- Shared conventions (config, display names, result collection)
+    │   ├── codex.md          <- Codex CLI details
+    │   ├── gemini.md         <- Gemini CLI details
+    │   ├── opencode.md       <- OpenCode CLI details
+    │   ├── pi.md             <- Pi CLI details
+    │   └── qwen.md           <- Qwen CLI details
     └── skills/
         ├── ask/
         │   └── SKILL.md      <- Ask all agents skill

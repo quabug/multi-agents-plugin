@@ -19,7 +19,7 @@ Host a structured multi-round discussion among N+1 AI panelists: N external CLI 
 
 N+1 panelists participate: N external CLIs (from resolved roster) + Claude Code (you). Each external CLI runs in permissive/auto-approve mode.
 
-The roster is determined by the **Agent Resolution** step in Phase 0. Refer to `references/agent-catalog.md` for each agent's command templates, flags, prompt passing strategy, output cleanup rules, and known quirks.
+The roster is determined by the **Agent Resolution** step in Phase 0. Refer to `references/agent-catalog.md` for shared conventions and each per-agent file (`references/{cli-name}.md`) for command templates, flags, prompt passing strategy, output cleanup rules, and known quirks.
 
 ## Discussion Protocol
 
@@ -33,11 +33,11 @@ Minimize tool call rounds. Combine independent checks into parallel calls.
 
    b. If no `## Multi-Agents` section is found, auto-detect:
    ```bash
-   which codex gemini opencode pi 2>&1
+   which codex gemini opencode pi qwen 2>&1
    ```
    Add one default entry (no model) for each CLI found on `$PATH`.
 
-   c. Read `references/agent-catalog.md` to load command templates and CLI-specific details for each agent in the roster.
+   c. Read `references/agent-catalog.md` for shared conventions and display name rules. Then, for each agent in the roster, read `references/{cli-name}.md` to load that agent's command templates, prompt passing strategy, session resume details, output cleanup rules, and known quirks.
 
    d. Build the roster table with display names per the catalog's display name rules.
 
@@ -234,4 +234,4 @@ Write the transcript file using this structure. The participant table and per-ro
 - **Keep moderator synthesis neutral**: In the synthesis section, treat your own panelist response the same as the others. Don't favor your own opinion over theirs.
 - **Respect the user**: The user controls pacing. Always ask before continuing to the next round.
 - **Clean up temp workspace**: The `/tmp/round-table-workspace` git repo is ephemeral and can be reused across sessions.
-- **Catalog is authoritative**: All CLI-specific commands, flags, quirks, and output cleanup rules live in `references/agent-catalog.md`. Do not hardcode CLI details in this file.
+- **Catalog is authoritative**: Shared conventions live in `references/agent-catalog.md` and per-agent commands, flags, quirks, and output cleanup rules live in `references/{cli-name}.md`. Do not hardcode CLI details in this file.

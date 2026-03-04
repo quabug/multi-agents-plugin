@@ -40,11 +40,11 @@ Parse the user's argument to determine whether a specific agent is targeted:
 
 2. If no `## Multi-Agents` section is found, auto-detect:
    ```bash
-   which codex gemini opencode pi 2>&1
+   which codex gemini opencode pi qwen 2>&1
    ```
    Add one default entry (no model) for each CLI found on `$PATH`.
 
-3. Read `references/agent-catalog.md` (from the plugin's own references directory) to load command templates and CLI-specific details for each agent in the roster.
+3. Read `references/agent-catalog.md` for shared conventions and display name rules. Then, for each agent in the roster, read `references/{cli-name}.md` to load that agent's command templates, prompt passing strategy, session resume details, output cleanup rules, and known quirks.
 
 4. Build the roster with display names per the catalog's display name rules.
 
@@ -68,6 +68,7 @@ For each agent in the (filtered) roster, build the command using the agent's **f
 - **Gemini**: Use `-y` approval flag. Use heredoc prompt passing.
 - **OpenCode**: Use direct quoted string (no heredoc). Include `-m {model}` flag if a model is configured.
 - **Pi**: Use `-p --no-tools --no-session` flags. Use direct quoted string (no heredoc). Include `--model {model}` if a model is configured.
+- **Qwen**: Use `-y` approval flag. Use heredoc prompt passing. Include `-m {model}` flag if a model is configured.
 
 **Prompt** (adapt per agent's prompt passing strategy):
 

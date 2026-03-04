@@ -22,11 +22,11 @@ Determine the agent roster before doing anything else.
 
 2. If no `## Multi-Agents` section is found, auto-detect:
    ```bash
-   which codex gemini opencode pi 2>&1
+   which codex gemini opencode pi qwen 2>&1
    ```
    Add one default entry (no model) for each CLI found on `$PATH`.
 
-3. Read `references/agent-catalog.md` (from the plugin's own references directory) to load command templates and CLI-specific details for each agent in the roster.
+3. Read `references/agent-catalog.md` for shared conventions and display name rules. Then, for each agent in the roster, read `references/{cli-name}.md` to load that agent's command templates, prompt passing strategy, session resume details, output cleanup rules, and known quirks.
 
 4. Build the roster with display names per the catalog's display name rules.
 

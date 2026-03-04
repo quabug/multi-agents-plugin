@@ -1,6 +1,6 @@
 # Agent Catalog
 
-Single source of truth for all supported external CLI agents. All skills read this file during setup to build commands for the resolved agent roster.
+Shared conventions and configuration rules for all supported external CLI agents. Per-agent command templates, prompt passing strategies, and quirks live in separate files under `references/` (e.g., `references/codex.md`, `references/gemini.md`).
 
 ---
 
@@ -31,6 +31,7 @@ Users configure which agents to use via a `## Multi-Agents` section in their CLA
 | `opencode` | OpenCode |
 | `opencode: bailian-coding-plan/glm-5` | OpenCode (GLM-5) |
 | `opencode: bailian-coding-plan/kimi-k2.5` | OpenCode (Kimi-K2.5) |
+| `qwen` | Qwen |
 
 **Rule:** Capitalize the CLI name. If a model is specified, append the last segment of the model path in parentheses, uppercased per segment (split on `-`, capitalize first letter of each word, rejoin with `-`).
 
@@ -39,209 +40,10 @@ Users configure which agents to use via a `## Multi-Agents` section in their CLA
 If no `## Multi-Agents` section is found in any CLAUDE.md, auto-detect available CLIs:
 
 ```bash
-which codex gemini opencode pi 2>&1
+which codex gemini opencode pi qwen 2>&1
 ```
 
 For each CLI found on `$PATH`, add one default entry (no model override). This means auto-detection produces at most one entry per CLI binary.
-
----
-
-## Supported Agents
-
-### Codex (OpenAI)
-
-- **Binary:** `codex`
-- **Install:** `npm install -g @openai/codex`
-- **Approval mode:** `--full-auto` (auto-approves, workspace-write sandbox) for round-table; `--dangerously-bypass-approvals-and-sandbox` for review-pr
-- **Requires git:** Yes — fails with "Not inside a trusted directory" if not in a git repo. Use `-C {git_dir}` flag (before `exec`) to specify the git directory, or create a temp repo.
-
-#### Commands
-
-**Fresh session:**
-```bash
-codex exec -C {git_dir} {approval_flag} "$(cat <<'PROMPT_EOF'
-{prompt}
-PROMPT_EOF
-)" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
-```
-
-**Session resume (round-table only):**
-```bash
-cd {git_dir} && codex exec resume {session_id} "$(cat <<'PROMPT_EOF'
-{prompt}
-PROMPT_EOF
-)" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
-```
-
-**One-shot (review-pr, with inline diff):**
-```bash
-codex exec --dangerously-bypass-approvals-and-sandbox \
-  "$(printf '{prompt_prefix}'; cat {diff_file}; printf '{prompt_suffix}')"
-```
-
-#### Prompt Passing
-- Use heredoc pattern `"$(cat <<'PROMPT_EOF' ... PROMPT_EOF)"` for multi-line prompts.
-- For review-pr: embed diff inline via `printf` + `cat` — Codex cannot reliably read files.
-
-#### Session Resume
-- Use `codex exec resume {session_id} "<prompt>"` — NOT `--last`. The `--last` flag cannot be combined with a prompt positional argument.
-- **Capture session ID** from round 1 output: look for `session id: {uuid}` in the output header.
-- Run from the git directory with `cd {git_dir} &&` for resume commands.
-- **Fallback:** If resume fails, fall back to fresh session with full context summary.
-
-#### Output Cleanup
-- Remove everything before and including the `codex` marker line.
-- Remove the trailing `tokens used` line.
-- Strip metadata headers (version, workdir, model, session id).
-
-#### Known Quirks
-- Requires a git repository — create temp repo at `/tmp/round-table-workspace` if needed.
-- Output contains metadata headers and a `thinking` block before the actual response.
-
----
-
-### Gemini (Google)
-
-- **Binary:** `gemini`
-- **Install:** `npm install -g @anthropic-ai/gemini-cli`
-- **Approval mode:** `-y` (yolo mode, auto-approves all tool actions) for round-table; `--yolo` for review-pr
-- **Requires git:** No
-
-#### Commands
-
-**Fresh session:**
-```bash
-gemini -p "$(cat <<'PROMPT_EOF'
-{prompt}
-PROMPT_EOF
-)" -y 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
-```
-
-**Session resume (round-table only):**
-```bash
-gemini -p "$(cat <<'PROMPT_EOF'
-{prompt}
-PROMPT_EOF
-)" -y --resume {session_uuid} 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
-```
-
-**One-shot (review-pr):**
-```bash
-gemini --yolo -p "{prompt}"
-```
-
-#### Prompt Passing
-- Use heredoc pattern `"$(cat <<'PROMPT_EOF' ... PROMPT_EOF)"` — works reliably.
-- Can reference files directly in prompts (unlike Codex).
-
-#### Session Resume
-- **Do NOT use `--resume latest`.** It resumes the most recent session, which causes cross-contamination when multiple Gemini agents run in parallel.
-- **Use `--resume {uuid}`** in Round 2+ to resume a specific session. After Round 1 completes, capture each agent's session UUID by running `gemini --list-sessions` — output shows index, title (contains prompt text), and UUID in brackets. Match sessions to agents by title/prompt content.
-- **Fallback:** If resume fails, fall back to fresh session with full context summary.
-
-#### Output Cleanup
-- Remove any `Error executing tool` lines (Gemini internal errors, not actual failures).
-- Remove `Loaded cached credentials.` line.
-
-#### Known Quirks
-- **Omit `--approval-mode plan`** — requires `experimental.plan` to be enabled and prints a noisy warning.
-- May emit harmless internal tool errors (e.g., `Error executing tool run_shell_command: Tool "run_shell_command" not found.`). The actual response text is still valid.
-
----
-
-### OpenCode
-
-- **Binary:** `opencode`
-- **Install:** See [opencode-ai/opencode](https://github.com/opencode-ai/opencode) repo
-- **Approval mode:** None available — already runs unrestricted.
-- **Model flag:** `-m {model}` to specify model (e.g., `bailian-coding-plan/glm-5`)
-- **Requires git:** No
-
-#### Commands
-
-**Fresh session:**
-```bash
-opencode run {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
-```
-
-**Session resume (round-table only):**
-```bash
-opencode run --session {session_id} {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
-```
-
-**One-shot (review-pr):**
-```bash
-opencode run -m {model} "{prompt}"
-```
-
-Where `{model_flag}` is `-m {model}` if a model is configured, or empty string if no model specified.
-
-#### Prompt Passing
-- **Do NOT use heredoc patterns.** Pass the prompt as a direct quoted positional argument.
-- Heredoc + pipe patterns can cause opencode to hang indefinitely with no output.
-- Replace `--` with single dash or em-dash in prompts to avoid flag parsing issues.
-- `{prompt_flattened}` means the prompt text with newlines preserved but passed as a single quoted argument.
-
-#### Session Resume
-- **Do NOT use `--continue`.** It resumes the most recent session, which causes cross-contamination when multiple OpenCode agents run in parallel. Additionally, parallel `--continue` can cause `"database is locked"` errors (SQLite contention).
-- **Use `--session {session_id}`** in Round 2+ to resume a specific session. After Round 1 completes, capture each agent's session ID by running `opencode session list` and matching the most recent sessions (sorted by Updated time) to the agents that just ran. Session IDs have the format `ses_...`.
-- **Fallback:** If `--session` fails, fall back to fresh session with full context summary.
-
-#### Output Cleanup
-- Remove the `> build · {model}` header line.
-
-#### Known Quirks
-- May run longer than other CLIs. If the Bash tool auto-backgrounds it, use `TaskOutput` to wait for completion (up to 120s), then `TaskStop` if it exceeds the timeout.
-
----
-
-### Pi
-
-- **Binary:** `pi`
-- **Install:** See [pi](https://github.com/themaximal1st/pi) repo (also available via Homebrew)
-- **Approval mode:** None needed — `-p` (print/non-interactive) mode has no interactive prompts.
-- **Model flag:** `--model {model}` to specify model (e.g., `openai/gpt-4o`, `sonnet`, `gemini-2.5-pro`). Supports `provider/model` shorthand.
-- **Requires git:** No
-
-#### Commands
-
-**Fresh session:**
-```bash
-pi -p --no-tools --session-dir {session_dir} {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
-```
-
-**Session resume (round-table only):**
-```bash
-pi -p --no-tools --session {session_file} {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
-```
-
-**One-shot (review-pr):**
-```bash
-pi -p --no-tools --no-session --model {model} "{prompt_flattened}"
-```
-
-Where `{model_flag}` is `--model {model}` if a model is configured, or empty string if no model specified.
-
-#### Prompt Passing
-- **Do NOT use heredoc patterns.** Pass the prompt as a direct quoted positional argument.
-- Heredoc + pipe patterns cause Pi to hang indefinitely with no output in zsh.
-- `{prompt_flattened}` means the prompt text with newlines preserved but passed as a single quoted argument.
-- Can reference files directly in prompts using `@file` syntax (e.g., `@diff.patch`).
-
-#### Session Resume
-- **Do NOT use `--continue`.** It resumes the most recently modified session file, which causes cross-contamination when multiple Pi agents run in parallel (all agents resume the same session instead of their own).
-- **Use `--session-dir {dir}`** in Round 1 to isolate each agent's session into a unique directory (e.g., `/tmp/round-table-sessions/glm-5/`).
-- **Use `--session {path}`** in Round 2+ to resume a specific session file. After Round 1, find the session file: `ls {session_dir}/` — there will be exactly one `.jsonl` file.
-- **Use `--no-session`** for one-shot tasks (review-pr, ask) where session history is not needed.
-- **Fallback:** If `--session` fails, fall back to fresh session with full context summary.
-
-#### Output Cleanup
-- Output is generally clean in `-p` mode. Strip ANSI codes as with other agents.
-- Remove any startup/loading messages if present.
-
-#### Known Quirks
-- Uses `--no-tools` flag for review/ask tasks to prevent Pi from trying to execute tools (read, bash, edit, write) when only a text response is needed.
-- Default provider is Google (Gemini). Use `--model provider/model` to switch providers (e.g., `--model openai/gpt-4o`, `--model anthropic/claude-sonnet-4-5-20250514`).
 
 ---
 
@@ -372,11 +174,11 @@ gh pr-review threads resolve --thread-id <THREAD_ID> -R ${REPO} <PR_NUMBER>
 
 To add support for a new external CLI agent:
 
-1. Add a new section under **Supported Agents** above with:
+1. Create a new file `references/{cli-name}.md` with a top-level heading (e.g., `# NewAgent (Vendor)`) containing:
    - Binary name, install command, approval mode, git requirements
    - Fresh command template, session resume command, one-shot command
    - Prompt passing strategy (heredoc vs direct string)
    - Output cleanup rules
    - Known quirks
-2. No changes needed to the skill files — they dynamically read this catalog and build commands for each agent in the resolved roster.
-3. Non-agent tools (like `gh pr-review`) that support skills but are not review agents go in their own dedicated section (e.g., "PR Review Extension").
+2. No changes needed to the skill files — they dynamically read this catalog and the per-agent files, building commands for each agent in the resolved roster.
+3. Non-agent tools (like `gh pr-review`) that support skills but are not review agents go in their own dedicated section in this file (e.g., "PR Review Extension").
