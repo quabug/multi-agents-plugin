@@ -2,7 +2,7 @@
 name: round-table
 description: Host a multi-agent round-table discussion. Spawns configurable external CLI agents as panelists with distinct roles and moderates a structured multi-round debate. Use when the user says "round-table", "multi-AI discussion", or "panel discussion".
 user-invocable: true
-version: 0.7.0
+version: 0.8.0
 ---
 
 # Round-Table Multi-Agent Discussion
@@ -11,7 +11,10 @@ version: 0.7.0
 
 ```
 /round-table <topic>
+/round-table --skip codex <topic>
 ```
+
+Extract any `--skip {name}` flags from the arguments and pass them to Agent Resolution for exclusion. The remaining argument is the topic.
 
 Host a structured multi-round discussion among N+1 AI panelists: N external CLI agents (configured or auto-detected) plus yourself (Claude Code). Each is assigned a distinct role. You (Claude Code) are both a panelist — contributing your own opinions from your assigned role — and the moderator who formulates questions, synthesizes responses, and steers the debate. A markdown transcript is saved to the working directory.
 
@@ -27,23 +30,10 @@ The roster is determined by the **Agent Resolution** step in Phase 0. Refer to `
 
 Minimize tool call rounds. Combine independent checks into parallel calls.
 
-1. **Agent Resolution** — determine the agent roster:
-
-   a. Read CLAUDE.md files (project-level, then user-level) and look for a `## Multi-Agents` section. Parse each `- {cli-name}` or `- {cli-name}: {model}` line into a roster entry.
-
-   b. If no `## Multi-Agents` section is found, auto-detect:
-   ```bash
-   which codex gemini opencode pi qwen 2>&1
-   ```
-   Add one default entry (no model) for each CLI found on `$PATH`.
-
-   c. Read `references/agent-catalog.md` for shared conventions and display name rules. Then, for each agent in the roster, read `references/{cli-name}.md` to load that agent's command templates, prompt passing strategy, session resume details, output cleanup rules, and known quirks.
-
-   d. Build the roster table with display names per the catalog's display name rules.
+1. **Agent Resolution** — follow the procedure in `references/agent-resolution.md` to build the agent roster.
 
 2. **Single parallel setup call** — issue these in one message:
-   - `which {all_cli_binaries_in_roster} 2>&1` — verify CLIs
-   - `git rev-parse --git-dir 2>/dev/null && echo IS_GIT || (mkdir -p /tmp/round-table-workspace && cd /tmp/round-table-workspace && git init -q 2>/dev/null && echo CREATED_GIT)` — check/create git dir (needed for agents that require git)
+   - `git rev-parse --git-dir 2>/dev/null && echo IS_GIT || (mkdir -p /tmp/multi-agents-workspace && cd /tmp/multi-agents-workspace && git init -q 2>/dev/null && echo CREATED_GIT)` — check/create git dir (needed for agents that require git)
    - `date '+%Y-%m-%d-%H%M%S'` — get timestamp
 
 3. **Generate N+1 complementary roles** — one for each panelist (N external agents + Claude). Invent roles tailored to the specific topic that create productive tension. Guidelines:
@@ -55,7 +45,7 @@ Minimize tool call rounds. Combine independent checks into parallel calls.
 
 4. **Create transcript file and ask user** — write transcript header to `round-table-{topic-slug}-{YYYY-MM-DD-HHmmss}.md`, display all participants + roles, and ask via `AskUserQuestion` if ready or want adjustments.
 
-5. Store `git_dir` (cwd if git repo, else `/tmp/round-table-workspace`) and initialize session state per agent (e.g., `codex_session_id=""`).
+5. Store `git_dir` (cwd if git repo, else `/tmp/multi-agents-workspace`) and initialize session state per agent (e.g., `codex_session_id=""`).
 
 ### Phase 1 -- Rounds (repeat)
 
@@ -163,7 +153,7 @@ Note: Round 2+ prompts are intentionally shorter because the CLI tool's session 
 | Scenario | Action |
 |---|---|
 | CLI not found (`which` fails) | Skip participant, warn user, continue with others |
-| Agent requires git but no git dir | Create temp git repo at `/tmp/round-table-workspace`, retry with appropriate flag |
+| Agent requires git but no git dir | Create temp git repo at `/tmp/multi-agents-workspace`, retry with appropriate flag |
 | Timeout (>600s) or Bash tool auto-backgrounds | Use `TaskOutput` to wait; if still running after 600s, use `TaskStop` and record `[TIMEOUT]` in transcript |
 | Non-zero exit / empty output | Capture stderr, record `[ERROR: ...]` in transcript, continue |
 | All external agents fail in a round | Alert user via `AskUserQuestion`, offer retry or end discussion |
@@ -233,5 +223,5 @@ Write the transcript file using this structure. The participant table and per-ro
 - **Dual hat — panelist then moderator**: In each round, first write your own opinion from your assigned role (be substantive and opinionated), then switch to neutral moderator voice for the synthesis. Keep these clearly separated.
 - **Keep moderator synthesis neutral**: In the synthesis section, treat your own panelist response the same as the others. Don't favor your own opinion over theirs.
 - **Respect the user**: The user controls pacing. Always ask before continuing to the next round.
-- **Clean up temp workspace**: The `/tmp/round-table-workspace` git repo is ephemeral and can be reused across sessions.
+- **Clean up temp workspace**: The `/tmp/multi-agents-workspace` git repo is ephemeral and can be reused across sessions.
 - **Catalog is authoritative**: Shared conventions live in `references/agent-catalog.md` and per-agent commands, flags, quirks, and output cleanup rules live in `references/{cli-name}.md`. Do not hardcode CLI details in this file.

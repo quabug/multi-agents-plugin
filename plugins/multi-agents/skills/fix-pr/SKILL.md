@@ -1,7 +1,7 @@
 ---
 name: fix-pr
 description: This skill should be used when the user asks to "fix a PR", "fix pull request", "fix PR issues", "review and fix PR", or wants an iterative multi-agent review + fix loop that automatically resolves issues found in a GitHub pull request.
-version: 0.6.0
+version: 0.8.0
 ---
 
 # Multi-Agent PR Fix
@@ -10,25 +10,13 @@ Review a GitHub PR using multiple AI agents in parallel, then iteratively fix th
 
 ## Arguments
 
-The user provides a PR number or URL (e.g., `42` or `https://github.com/owner/repo/pull/42`). Extract the PR number from the argument.
+The user provides a PR number or URL (e.g., `42` or `https://github.com/owner/repo/pull/42`). Extract the PR number from the argument. Also extract any `--skip {name}` flags and pass them to Agent Resolution for exclusion.
 
 ## Instructions
 
 ### Step 0: Agent Resolution
 
-Determine the agent roster before doing anything else.
-
-1. Read CLAUDE.md files (project-level, then user-level) and look for a `## Multi-Agents` section. Parse each `- {cli-name}` or `- {cli-name}: {model}` line into a roster entry.
-
-2. If no `## Multi-Agents` section is found, auto-detect:
-   ```bash
-   which codex gemini opencode pi qwen 2>&1
-   ```
-   Add one default entry (no model) for each CLI found on `$PATH`.
-
-3. Read `references/agent-catalog.md` for shared conventions and display name rules. Then, for each agent in the roster, read `references/{cli-name}.md` to load that agent's command templates, prompt passing strategy, session resume details, output cleanup rules, and known quirks.
-
-4. Build the roster with display names per the catalog's display name rules.
+Follow the procedure in `references/agent-resolution.md` to build the agent roster.
 
 ### Step 1: Fetch PR Context
 
@@ -63,6 +51,8 @@ mkdir -p pr-reviews
 BASE_BRANCH=$(gh pr view <PR_NUMBER> --json baseRefName -q .baseRefName)
 git diff ${BASE_BRANCH}...HEAD > pr-reviews/pr<PR_NUMBER>.diff
 ```
+
+**Large diff guard**: Check `wc -l pr-reviews/pr<PR_NUMBER>.diff`. If the diff exceeds 5000 lines, warn the user — agents (especially Codex, which embeds diffs inline) may hit token limits or produce lower-quality reviews on very large diffs. Ask whether to proceed or focus on specific files.
 
 Fetch existing review comments and conversations — these are first-class issues to fix. Use one of two paths depending on `has_pr_review_ext`:
 
@@ -158,15 +148,9 @@ After all tools finish (or time out):
 
 If there are **no critical or major issues** (from agents or existing reviews), exit the loop and proceed to Step 4 (Final Report).
 
-#### 3d. Present Issues & Ask User
+#### 3d. Display Issues
 
-Display the categorized issues to the user. Use `AskUserQuestion` to confirm before applying fixes:
-
-- **Continue** — fix all critical and major issues (Recommended)
-- **Select issues** — let user specify which issues to fix
-- **Stop** — exit the loop, report current state
-
-If the user chooses "Stop", exit the loop and proceed to Step 4.
+Display the categorized issues to the user briefly, then proceed directly to fixing them. No confirmation needed — the skill auto-fixes all critical and major issues.
 
 #### 3e. Fix Issues
 
@@ -276,7 +260,7 @@ rmdir pr-reviews 2>/dev/null
 - **No GitHub review comment posted** — unlike `review-pr`, this skill fixes instead of reporting. The fixes themselves are the output.
 - **Thread resolution is best-effort** — `gh pr-review` thread resolution (Step 3g) never blocks the fix loop. If it fails, the fix was still applied.
 - **Structured JSON preferred over REST** — when `gh pr-review` is available, structured thread data provides thread IDs for resolution and better parsing than the REST API's plain-text output.
-- **User confirmation before fixing** — after each review round, show the issues found and ask the user to confirm before applying fixes.
+- **Auto-fix without confirmation** — after each review round, issues are displayed and then fixed automatically. This keeps the loop fast and hands-free.
 - **Pushes after each commit** — keeps the remote PR up to date so reviewers can see incremental fixes.
 - **Local diff generation** — always use `git diff <base>...HEAD` instead of `gh pr diff` to ensure the diff reflects local commits that haven't been pushed yet.
 - **Run tests before committing** — verify fixes don't break anything before creating a commit.

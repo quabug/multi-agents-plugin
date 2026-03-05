@@ -31,6 +31,18 @@ Configure which agents to use via a `## Multi-Agents` section in your CLAUDE.md 
 - Lines not matching the pattern are ignored
 - Project CLAUDE.md takes precedence over user CLAUDE.md
 
+### Skipping Agents
+
+Use `--skip` to exclude specific agents from a single invocation:
+
+```bash
+/review-pr 42 --skip codex           # skip Codex for this review
+/ask --skip glm-5 "your question"    # skip the GLM-5 agent
+/round-table --skip codex --skip gemini "topic"  # skip multiple agents
+```
+
+Matches by CLI name, model name, or display name (case-insensitive).
+
 ### Auto-Detection Fallback
 
 If no `## Multi-Agents` section is found, the plugin auto-detects available CLIs:
@@ -92,8 +104,8 @@ Key differences from `review-pr`:
 - **Fixes code** instead of posting a review comment
 - **Iterative** — reviews, fixes, re-reviews in a loop
 - **Includes human feedback** — existing PR comments are treated as first-class issues to resolve
-- **User confirmation** — asks before applying fixes each iteration
-- **Does not push** — you decide when to push the fix commits
+- **Auto-fix** — fixes critical/major issues automatically without prompting
+- **Pushes after each fix commit** — keeps the remote PR up to date so reviewers can see incremental fixes
 
 ### PR Review
 
@@ -154,12 +166,13 @@ plugins/
     ├── .claude-plugin/
     │   └── plugin.json       <- Plugin manifest
     ├── references/
-    │   ├── agent-catalog.md  <- Shared conventions (config, display names, result collection)
-    │   ├── codex.md          <- Codex CLI details
-    │   ├── gemini.md         <- Gemini CLI details
-    │   ├── opencode.md       <- OpenCode CLI details
-    │   ├── pi.md             <- Pi CLI details
-    │   └── qwen.md           <- Qwen CLI details
+    │   ├── agent-catalog.md     <- Shared conventions (config, display names, result collection)
+    │   ├── agent-resolution.md  <- Shared agent roster building procedure
+    │   ├── codex.md             <- Codex CLI details
+    │   ├── gemini.md            <- Gemini CLI details
+    │   ├── opencode.md          <- OpenCode CLI details
+    │   ├── pi.md                <- Pi CLI details
+    │   └── qwen.md              <- Qwen CLI details
     └── skills/
         ├── ask/
         │   └── SKILL.md      <- Ask all agents skill

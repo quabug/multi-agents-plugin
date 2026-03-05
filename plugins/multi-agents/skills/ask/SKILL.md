@@ -2,7 +2,7 @@
 name: ask
 description: Ask configured AI agents a question in parallel and display their responses. Optionally target a specific agent or model. Use when the user says "ask all agents", "ask codex", "ask gemini", "ask glm-5", or wants AI perspectives on a question.
 user-invocable: true
-version: 0.3.0
+version: 0.8.0
 ---
 
 # Multi-Agent Ask
@@ -21,7 +21,9 @@ Send a question to configured agents in parallel (or a specific one), display ea
 
 ## Argument Parsing
 
-Parse the user's argument to determine whether a specific agent is targeted:
+First, extract any `--skip {name}` flags from the raw arguments and set them aside for Agent Resolution. Remove them from the argument string before proceeding.
+
+Then parse the remaining argument to determine whether a specific agent is targeted:
 
 1. **Extract the first word** of the argument (before the question).
 2. **Match it against the resolved roster** using these rules (case-insensitive):
@@ -36,54 +38,30 @@ Parse the user's argument to determine whether a specific agent is targeted:
 
 ### Step 0: Agent Resolution
 
-1. Read CLAUDE.md files (project-level, then user-level) and look for a `## Multi-Agents` section. Parse each `- {cli-name}` or `- {cli-name}: {model}` line into a roster entry.
+Follow the procedure in `references/agent-resolution.md` to build the agent roster.
 
-2. If no `## Multi-Agents` section is found, auto-detect:
-   ```bash
-   which codex gemini opencode pi qwen 2>&1
-   ```
-   Add one default entry (no model) for each CLI found on `$PATH`.
+**Apply target filter** (from argument parsing above): If a target was specified, narrow the roster to only the matched agent(s).
 
-3. Read `references/agent-catalog.md` for shared conventions and display name rules. Then, for each agent in the roster, read `references/{cli-name}.md` to load that agent's command templates, prompt passing strategy, session resume details, output cleanup rules, and known quirks.
+### Step 1: Setup
 
-4. Build the roster with display names per the catalog's display name rules.
-
-5. **Apply target filter** (from argument parsing above). If a target was specified, narrow the roster to only the matched agent(s).
-
-### Step 1: Verify CLIs
-
-Run a single parallel setup call:
-- `which {all_cli_binaries_in_roster} 2>&1` — verify CLIs
-- `git rev-parse --git-dir 2>/dev/null && echo IS_GIT || (mkdir -p /tmp/multi-agents-workspace && cd /tmp/multi-agents-workspace && git init -q 2>/dev/null && echo CREATED_GIT)` — check/create git dir (needed for agents that require git)
+Check/create a git dir for agents that require one (e.g., Codex):
+```bash
+git rev-parse --git-dir 2>/dev/null && echo IS_GIT || (mkdir -p /tmp/multi-agents-workspace && cd /tmp/multi-agents-workspace && git init -q 2>/dev/null && echo CREATED_GIT)
+```
 
 Store `git_dir` (cwd if git repo, else `/tmp/multi-agents-workspace`).
 
 ### Step 2: Dispatch Agents in Parallel
 
-Issue all N Bash tool calls in a **single message** so they run concurrently (or just 1 call if targeting a single agent).
+For each agent in the (filtered) roster, build the command using the agent's **fresh session** command template from its reference file (`references/{cli-name}.md`). For agents with a model override, include the model flag. Apply all **Common Conventions** from the catalog (ANSI stripping, 600-second timeout, stderr capture, `run_in_background: true`).
 
-For each agent in the (filtered) roster, build the command using the agent's **fresh session** command template from the catalog:
+**Prompt**: Pass the user's question directly — do not wrap it in additional instructions or framing. The user's exact words are the prompt. Adapt the prompt passing strategy (heredoc vs direct quoted string) per each agent's reference file.
 
-- **Codex**: Use `--full-auto` approval flag. Use heredoc prompt passing. Pass `-C {git_dir}`.
-- **Gemini**: Use `-y` approval flag. Use heredoc prompt passing.
-- **OpenCode**: Use direct quoted string (no heredoc). Include `-m {model}` flag if a model is configured.
-- **Pi**: Use `-p --no-tools --no-session` flags. Use direct quoted string (no heredoc). Include `--model {model}` if a model is configured.
-- **Qwen**: Use `-y` approval flag. Use heredoc prompt passing. Include `-m {model}` flag if a model is configured.
-
-**Prompt** (adapt per agent's prompt passing strategy):
-
-```
-{user_question}
-```
-
-Pass the user's question directly — do not wrap it in additional instructions or framing. The user's exact words are the prompt.
-
-**Command conventions** (apply to all agents):
-- Pipe through `sed 's/\x1b\[[0-9;]*m//g'` to strip ANSI escape codes
-- Use 600-second (10 minute) timeout via the Bash tool's `timeout` parameter
-- Append `2>&1` to capture both stdout and stderr
+Issue all N Bash tool calls in a **single message** with `run_in_background: true` so they run concurrently (or just 1 foreground call if targeting a single agent).
 
 ### Step 3: Collect and Display Responses
+
+Collect results following the **Result Collection** rules from the catalog: call `TaskOutput` sequentially (one per message, never multiple in parallel) to avoid cascading failures. Apply **Output Validation** rules to discard useless output.
 
 After all agents return:
 

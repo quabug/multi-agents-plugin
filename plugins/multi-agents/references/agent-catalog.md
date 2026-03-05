@@ -32,8 +32,12 @@ Users configure which agents to use via a `## Multi-Agents` section in their CLA
 | `opencode: bailian-coding-plan/glm-5` | OpenCode (GLM-5) |
 | `opencode: bailian-coding-plan/kimi-k2.5` | OpenCode (Kimi-K2.5) |
 | `qwen` | Qwen |
+| `qwen: glm-5` | Qwen (GLM-5) |
+| `qwen: kimi-k2.5` | Qwen (Kimi-K2.5) |
+| `qwen: minimax-m2.5` | Qwen (Minimax-M2.5) |
+| `qwen: qwen3.5-plus` | Qwen (Qwen3.5-Plus) |
 
-**Rule:** Capitalize the CLI name. If a model is specified, append the last segment of the model path in parentheses, uppercased per segment (split on `-`, capitalize first letter of each word, rejoin with `-`).
+**Rule:** Capitalize the CLI name. If a model is specified, append the last segment of the model path in parentheses, formatted per segment: split on `-`, then for each segment — if it is all-lowercase and ≤4 characters (likely an acronym like `glm`, `api`), uppercase it entirely; otherwise capitalize just the first letter. Rejoin with `-`.
 
 ### Fallback: Auto-Detection
 

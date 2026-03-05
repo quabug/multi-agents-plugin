@@ -2,7 +2,7 @@
 
 - **Binary:** `gemini`
 - **Install:** `npm install -g @anthropic-ai/gemini-cli`
-- **Approval mode:** `-y` (yolo mode, auto-approves all tool actions) for round-table; `--yolo` for review-pr
+- **Approval mode:** `-y` (short for `--yolo`, auto-approves all tool actions)
 - **Requires git:** No
 
 ## Commands
@@ -25,7 +25,7 @@ PROMPT_EOF
 
 **One-shot (review-pr):**
 ```bash
-gemini --yolo -p "{prompt}"
+gemini -y -p "{prompt}"
 ```
 
 ## Prompt Passing

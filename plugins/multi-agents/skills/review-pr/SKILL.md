@@ -1,7 +1,7 @@
 ---
 name: review-pr
 description: This skill should be used when the user asks to "review a PR", "review pull request", "PR review", or wants a multi-agent code review of a GitHub pull request using configurable AI tools in parallel.
-version: 0.4.0
+version: 0.8.0
 ---
 
 # Multi-Agent PR Review
@@ -10,29 +10,26 @@ Review a GitHub PR using multiple AI agents in parallel, then synthesize their f
 
 ## Arguments
 
-The user provides a PR number or URL (e.g., `42` or `https://github.com/owner/repo/pull/42`). Extract the PR number from the argument.
+The user provides a PR number or URL (e.g., `42` or `https://github.com/owner/repo/pull/42`). Extract the PR number from the argument. Also extract any `--skip {name}` flags and pass them to Agent Resolution for exclusion.
 
 ## Instructions
 
 ### Step 0: Agent Resolution
 
-Determine the agent roster before doing anything else.
-
-1. Read CLAUDE.md files (project-level, then user-level) and look for a `## Multi-Agents` section. Parse each `- {cli-name}` or `- {cli-name}: {model}` line into a roster entry.
-
-2. If no `## Multi-Agents` section is found, auto-detect:
-   ```bash
-   which codex gemini opencode pi qwen 2>&1
-   ```
-   Add one default entry (no model) for each CLI found on `$PATH`.
-
-3. Read `references/agent-catalog.md` for shared conventions and display name rules. Then, for each agent in the roster, read `references/{cli-name}.md` to load that agent's command templates, prompt passing strategy, session resume details, output cleanup rules, and known quirks.
-
-4. Build the roster with display names per the catalog's display name rules.
+Follow the procedure in `references/agent-resolution.md` to build the agent roster.
 
 ### Step 1: Fetch PR Context
 
-Fetch the PR diff, metadata, and existing review comments:
+Capture the repo identifier and detect the `gh pr-review` extension first — `REPO` is used by subsequent commands:
+
+```bash
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+gh pr-review --version 2>/dev/null
+```
+
+Store `has_pr_review_ext` (true if exit code 0, false otherwise) and `REPO`. Refer to the **PR Review Extension** section in `references/agent-catalog.md` for the full command reference.
+
+Fetch the PR diff and metadata:
 
 ```bash
 mkdir -p pr-reviews
@@ -43,27 +40,20 @@ gh pr view <PR_NUMBER> --json title,body,baseRefName,headRefName
 Fetch existing review comments and conversations so agents can consider prior feedback:
 
 ```bash
-gh api repos/{owner}/{repo}/pulls/<PR_NUMBER>/comments --jq '.[] | "[\(.user.login)] \(.path):\(.line // .original_line) — \(.body)"' > pr-reviews/pr<PR_NUMBER>.comments 2>/dev/null
-gh api repos/{owner}/{repo}/pulls/<PR_NUMBER>/reviews --jq '.[] | select(.body != "") | "[\(.user.login)] (\(.state)) — \(.body)"' >> pr-reviews/pr<PR_NUMBER>.comments 2>/dev/null
-gh api repos/{owner}/{repo}/issues/<PR_NUMBER>/comments --jq '.[] | "[\(.user.login)] — \(.body)"' >> pr-reviews/pr<PR_NUMBER>.comments 2>/dev/null
+gh api repos/${REPO}/pulls/<PR_NUMBER>/comments --jq '.[] | "[\(.user.login)] \(.path):\(.line // .original_line) — \(.body)"' > pr-reviews/pr<PR_NUMBER>.comments 2>/dev/null
+gh api repos/${REPO}/pulls/<PR_NUMBER>/reviews --jq '.[] | select(.body != "") | "[\(.user.login)] (\(.state)) — \(.body)"' >> pr-reviews/pr<PR_NUMBER>.comments 2>/dev/null
+gh api repos/${REPO}/issues/<PR_NUMBER>/comments --jq '.[] | "[\(.user.login)] — \(.body)"' >> pr-reviews/pr<PR_NUMBER>.comments 2>/dev/null
 ```
 
-Read both the diff and comments files to understand the scope, context, and any prior feedback.
+Apply the **PR Comment Filtering** rules from the catalog to skip CI bot noise, quota messages, and auto-generated summaries. Read both the diff and comments files to understand the scope, context, and any prior feedback.
 
-Detect the `gh pr-review` extension and store flags for later use:
-
-```bash
-REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-gh pr-review --version 2>/dev/null
-```
-
-Store `has_pr_review_ext` (true if exit code 0, false otherwise) and `REPO`. Refer to the **PR Review Extension** section in `references/agent-catalog.md` for the full command reference.
+**Large diff guard**: Check `wc -l pr-reviews/pr<PR_NUMBER>.diff`. If the diff exceeds 5000 lines, warn the user — agents (especially Codex, which embeds diffs inline) may hit token limits or produce lower-quality reviews on very large diffs. Ask whether to proceed or focus on specific files.
 
 ### Step 2: Launch Review Agents in Parallel
 
-Run ALL agents from the resolved roster **in parallel** as background bash commands. Each agent reviews the diff from a different perspective.
+Issue all N Bash tool calls in a **single message** with `run_in_background: true` so they run concurrently. Each agent reviews the diff from a different perspective.
 
-For each agent in the roster, build the review command using the agent's **one-shot** command template from the catalog:
+For each agent in the roster, build the review command using the agent's **one-shot** command template from its reference file (`references/{cli-name}.md`). Apply all **Common Conventions** from the catalog (ANSI stripping, 600-second timeout, stderr capture).
 
 - **Agents that cannot reliably read files** (e.g., Codex per the catalog): Embed the diff AND existing comments inline in the prompt via `printf` + `cat`.
 - **Agents that can reference files** (e.g., Gemini, OpenCode per the catalog): Reference the diff and comments files by path in the prompt.
@@ -86,11 +76,13 @@ Output your findings as a structured list with severity labels (critical/major/m
 
 ### Step 3: Wait for ALL Agents, Then Synthesize
 
-**IMPORTANT**: Wait for ALL launched review tools to complete before posting the review. Do NOT post with partial results. If a tool takes more than 5 minutes with no output progress, note it as "did not complete" and proceed with the rest.
+**IMPORTANT**: Wait for ALL launched review tools to complete before posting the review. Do NOT post with partial results.
+
+Collect results following the **Result Collection** and **Output Validation** rules from the catalog: call `TaskOutput` sequentially (one per message, never multiple in parallel) to avoid cascading failures. If a tool exceeds the 600-second timeout, note it as "did not complete" and proceed with the rest.
 
 After all tools finish:
 
-1. **Collect** findings from each tool. Apply output cleanup rules from the catalog.
+1. **Clean** findings from each tool. Apply output cleanup rules from the catalog. Discard useless output per the Output Validation rules.
 2. **Cross-reference with existing comments**: skip issues already raised in prior reviews; note if prior feedback has been addressed by the current diff
 3. **Categorize** new issues by severity:
    - **Critical**: bugs, security issues, data corruption risks

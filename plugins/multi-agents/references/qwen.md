@@ -2,7 +2,7 @@
 
 - **Binary:** `qwen`
 - **Install:** `npm install -g @anthropic-ai/qwen-code` or see [Qwen Code](https://github.com/anthropics/qwen-code) repo
-- **Approval mode:** `-y` (yolo mode, auto-approves all tool actions) for round-table; `--yolo` for review-pr
+- **Approval mode:** `-y` (short for `--yolo`, auto-approves all tool actions)
 - **Model flag:** `-m {model}` to specify model
 - **Requires git:** No
 
@@ -26,7 +26,7 @@ PROMPT_EOF
 
 **One-shot (review-pr):**
 ```bash
-qwen --yolo "$(cat <<'PROMPT_EOF'
+qwen -y "$(cat <<'PROMPT_EOF'
 {prompt}
 PROMPT_EOF
 )" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
