@@ -24,7 +24,7 @@ Capture the repo identifier and detect the `gh pr-review` extension first — `R
 
 ```bash
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-gh pr-review --version 2>/dev/null
+gh pr-review --help >/dev/null 2>&1
 ```
 
 Store `has_pr_review_ext` (true if exit code 0, false otherwise) and `REPO`. Refer to the **PR Review Extension** section in `references/agent-catalog.md` for the full command reference.

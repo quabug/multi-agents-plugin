@@ -101,7 +101,7 @@ A GitHub CLI extension for posting inline threaded review comments on PRs — si
 ### Detection
 
 ```bash
-gh pr-review --version 2>/dev/null
+gh pr-review --help >/dev/null 2>&1
 ```
 
 Store the result as a boolean flag `has_pr_review_ext` (true if exit code 0, false otherwise). Also capture the repo identifier for `-R` flags:
