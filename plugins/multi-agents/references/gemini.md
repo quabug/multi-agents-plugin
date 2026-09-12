@@ -1,36 +1,36 @@
 # Gemini (Google)
 
 - **Binary:** `gemini`
-- **Install:** `npm install -g @anthropic-ai/gemini-cli`
-- **Approval mode:** `-y` (short for `--yolo`, auto-approves all tool actions)
+- **Permissions:** Follow [shared conventions](agent-catalog.md); use current CLI help to restrict question/review participants to the permitted task scope.
 - **Requires git:** No
+- **Model flag:** `-m {model}` when selected, otherwise empty.
 
 ## Commands
 
 **Fresh session:**
 ```bash
-gemini -p "$(cat <<'PROMPT_EOF'
+gemini {model_flag} -p "$(cat <<'PROMPT_EOF'
 {prompt}
 PROMPT_EOF
-)" -y 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+)" {permission_flags} 2>&1
 ```
 
 **Session resume (round-table only):**
 ```bash
-gemini -p "$(cat <<'PROMPT_EOF'
+gemini {model_flag} -p "$(cat <<'PROMPT_EOF'
 {prompt}
 PROMPT_EOF
-)" -y --resume {session_uuid} 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+)" {permission_flags} --resume {session_uuid} 2>&1
 ```
 
 **One-shot (review-pr):**
 ```bash
-gemini -y -p "{prompt}"
+gemini {permission_flags} {model_flag} -p "{prompt}"
 ```
 
 ## Prompt Passing
 - Use heredoc pattern `"$(cat <<'PROMPT_EOF' ... PROMPT_EOF)"` — works reliably.
-- Can reference files directly in prompts (unlike Codex).
+- Can reference accessible files directly in prompts.
 
 ## Session Resume
 - **Do NOT use `--resume latest`.** It resumes the most recent session, which causes cross-contamination when multiple Gemini agents run in parallel.
@@ -38,9 +38,9 @@ gemini -y -p "{prompt}"
 - **Fallback:** If resume fails, fall back to fresh session with full context summary.
 
 ## Output Cleanup
-- Remove any `Error executing tool` lines (Gemini internal errors, not actual failures).
+- Preserve tool errors that limit evidence; separate them from the answer rather than treating them as findings.
 - Remove `Loaded cached credentials.` line.
 
 ## Known Quirks
-- **Omit `--approval-mode plan`** — requires `experimental.plan` to be enabled and prints a noisy warning.
-- May emit harmless internal tool errors (e.g., `Error executing tool run_shell_command: Tool "run_shell_command" not found.`). The actual response text is still valid.
+- The installed help advertises `--approval-mode plan` for read-only work; verify any version-specific setup before relying on it.
+- May emit harmless internal tool errors (e.g., `Error executing tool run_shell_command: Tool "run_shell_command" not found.`). Assess whether those errors affected the evidence before relying on the response.

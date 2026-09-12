@@ -1,8 +1,7 @@
 # Pi
 
 - **Binary:** `pi`
-- **Install:** See [pi](https://github.com/themaximal1st/pi) repo (also available via Homebrew)
-- **Approval mode:** None needed — `-p` (print/non-interactive) mode has no interactive prompts.
+- **Permissions:** Follow [shared conventions](agent-catalog.md); use current CLI help to restrict question/review participants to the permitted task scope.
 - **Model flag:** `--model {model}` to specify model (e.g., `openai/gpt-4o`, `sonnet`, `gemini-2.5-pro`). Supports `provider/model` shorthand.
 - **Requires git:** No
 
@@ -10,17 +9,17 @@
 
 **Fresh session:**
 ```bash
-pi -p --no-tools --session-dir {session_dir} {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+pi -p --no-tools --session-dir {session_dir} {model_flag} "{prompt_flattened}" 2>&1
 ```
 
 **Session resume (round-table only):**
 ```bash
-pi -p --no-tools --session {session_file} {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+pi -p --no-tools --session {session_file} {model_flag} "{prompt_flattened}" 2>&1
 ```
 
 **One-shot (review-pr):**
 ```bash
-pi -p --no-tools --no-session --model {model} "{prompt_flattened}"
+pi -p --no-tools --no-session {model_flag} "{prompt_flattened}"
 ```
 
 Where `{model_flag}` is `--model {model}` if a model is configured, or empty string if no model specified.

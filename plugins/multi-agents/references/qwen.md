@@ -1,35 +1,34 @@
 # Qwen (Alibaba)
 
 - **Binary:** `qwen`
-- **Install:** `npm install -g @anthropic-ai/qwen-code` or see [Qwen Code](https://github.com/anthropics/qwen-code) repo
-- **Approval mode:** `-y` (short for `--yolo`, auto-approves all tool actions)
-- **Model flag:** `-m {model}` to specify model
+- **Permissions:** Follow [shared conventions](agent-catalog.md); use current CLI help to restrict question/review participants to the permitted task scope.
+- **Model flag:** `-m {model}` when selected, otherwise empty.
 - **Requires git:** No
 
 ## Commands
 
 **Fresh session:**
 ```bash
-qwen "$(cat <<'PROMPT_EOF'
+qwen {model_flag} "$(cat <<'PROMPT_EOF'
 {prompt}
 PROMPT_EOF
-)" -y --session-id {uuid} 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+)" {permission_flags} --session-id {uuid} 2>&1
 ```
 
 **Session resume (round-table only):**
 ```bash
-qwen "$(cat <<'PROMPT_EOF'
+qwen {model_flag} "$(cat <<'PROMPT_EOF'
 {prompt}
 PROMPT_EOF
-)" -y --resume {session_uuid} 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+)" {permission_flags} --resume {session_uuid} 2>&1
 ```
 
 **One-shot (review-pr):**
 ```bash
-qwen -y "$(cat <<'PROMPT_EOF'
+qwen {permission_flags} {model_flag} "$(cat <<'PROMPT_EOF'
 {prompt}
 PROMPT_EOF
-)" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+)" 2>&1
 ```
 
 ## Prompt Passing

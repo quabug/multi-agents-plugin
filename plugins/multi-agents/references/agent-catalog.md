@@ -1,188 +1,35 @@
-# Agent Catalog
+# Shared Agent Conventions
 
-Shared conventions and configuration rules for all supported external CLI agents. Per-agent command templates, prompt passing strategies, and quirks live in separate files under `references/` (e.g., `references/codex.md`, `references/gemini.md`).
+This plugin consults external CLI agents. Use the user's selected roster/models and current
+CLI help when a reference's compatibility example differs from the installed version.
 
----
+## Scope and execution
 
-## Configuration Format
+- Question, discussion, and review participants are read-only. Use supported tool restrictions
+  or an isolated workspace containing only needed artifacts. Do not enable unrestricted or
+  auto-approval modes merely because an old example used them; stay within current task
+  permissions. A PR-repair host owns authorized edits and publication.
+- Dispatch independent participants concurrently using the host's available process tools.
+  Use unique output/session locations per participant. Bound waiting by the user's budget;
+  absent one, ten minutes per external call is a reasonable default. Poll in short intervals
+  so steering and status updates remain possible; cancel only processes started for this task.
+- Pass prompts as data through stdin, files, or properly quoted arguments. Never interpolate
+  question/diff text into executable shell code or a `printf` format string.
+- Capture exit status and stderr. Strip display metadata/ANSI noise while preserving errors
+  that affect confidence. Use explicit session IDs, never a shared latest-session shortcut.
 
-Users configure which agents to use via a `## Multi-Agents` section in their CLAUDE.md (project or global):
+## Results
 
-```markdown
-## Multi-Agents
-- codex
-- gemini
-- opencode: bailian-coding-plan/glm-5
-- opencode: bailian-coding-plan/kimi-k2.5
-```
+Label the host contribution as "Claude Code", distinct from any external Codex participant.
 
-**Syntax:** `- {cli-name}` or `- {cli-name}: {model}`
+Collect each result independently. If the host cancels sibling polls when one fails, poll
+sequentially (Claude Code `TaskOutput`) or inspect separate output files. A failed, truncated, or empty response is
+missing coverage; it is not evidence that no issues exist. Skip persistently failing optional
+participants and disclose the gap rather than restarting the entire consultation.
 
-- Same CLI can appear multiple times with different models.
-- Lines not matching `- {word}` pattern are ignored.
-- The section ends at the next `##` heading or end of file.
+For reviews, retain actionable human/bot findings and filter status reports and quota noise.
+Verify findings against code; consensus alone does not establish correctness. Report severity,
+location, consequence, and relevant evidence. Do not duplicate already addressed feedback.
 
-### Display Name Rules
-
-| Entry | Display Name |
-|---|---|
-| `codex` | Codex |
-| `gemini` | Gemini |
-| `opencode` | OpenCode |
-| `opencode: bailian-coding-plan/glm-5` | OpenCode (GLM-5) |
-| `opencode: bailian-coding-plan/kimi-k2.5` | OpenCode (Kimi-K2.5) |
-| `qwen` | Qwen |
-| `qwen: glm-5` | Qwen (GLM-5) |
-| `qwen: kimi-k2.5` | Qwen (Kimi-K2.5) |
-| `qwen: minimax-m2.5` | Qwen (Minimax-M2.5) |
-| `qwen: qwen3.5-plus` | Qwen (Qwen3.5-Plus) |
-
-**Rule:** Capitalize the CLI name. If a model is specified, append the last segment of the model path in parentheses, formatted per segment: split on `-`, then for each segment — if it is all-lowercase and ≤4 characters (likely an acronym like `glm`, `api`), uppercase it entirely; otherwise capitalize just the first letter. Rejoin with `-`.
-
-### Fallback: Auto-Detection
-
-If no `## Multi-Agents` section is found in any CLAUDE.md, auto-detect available CLIs:
-
-```bash
-which codex gemini opencode pi qwen 2>&1
-```
-
-For each CLI found on `$PATH`, add one default entry (no model override). This means auto-detection produces at most one entry per CLI binary.
-
----
-
-## Common Conventions
-
-All agent commands follow these conventions:
-
-| Convention | Detail |
-|---|---|
-| ANSI stripping | Pipe through `sed 's/\x1b\[[0-9;]*m//g'` |
-| Timeout | 600-second (10 minute) timeout via Bash tool's `timeout` parameter (do NOT use the `timeout` shell command — unavailable on macOS) |
-| Background dispatch | Use `run_in_background: true` on each Bash call when launching multiple agents in parallel |
-| Stderr capture | Append `2>&1` to capture both stdout and stderr |
-| Error handling | If a CLI is not found (`which` fails), skip it and continue with others |
-| Session fallback | If resume/continue fails, fall back to fresh session with full context summary |
-
-### Result Collection
-
-When collecting results from background agent tasks:
-
-- **Collect sequentially**: Call `TaskOutput` one at a time (one per message, NOT multiple in a single parallel message). If one `TaskOutput` call errors, all sibling tool calls in the same message are cancelled — this cascading failure loses all results.
-- **Alternative**: Read the output files directly with the Read tool (the file path is returned when the background task is launched).
-- **Timeouts**: If an agent exceeds the 600-second timeout, it is automatically terminated. Note it as "timed out" and proceed with the rest. Use `TaskStop` to terminate any agents still running after collection.
-- **Subsequent iterations** (for iterative skills like fix-pr): Consider skipping agents that timed out or failed in a previous iteration to avoid wasting time.
-
-### Output Validation
-
-After collecting and cleaning each agent's output, validate that it contains useful content:
-
-- **Useless output**: Some agents may produce no actionable findings — they echo back the input, produce only metadata/thinking blocks, hit token limits before generating findings, or fail silently with a zero exit code. If an agent's output contains no structured findings after applying cleanup rules, discard it and note "{display_name} produced no actionable output."
-- **Do NOT treat empty/useless output as "no issues found"**: Only explicit statements like "No critical or major issues found" count as a clean bill of health. Absence of findings in broken output is not evidence of absence of issues.
-- **Model name errors**: Some providers (especially OpenCode) have case-sensitive model names. If an agent fails with a "model not found" or "did you mean" error, note the error, skip that agent, and report the misconfigured model name to the user so they can fix their CLAUDE.md config. Do not retry with a guessed name.
-
-### PR Comment Filtering
-
-When fetching existing PR review comments (for skills like review-pr and fix-pr), filter out noise before analysis:
-
-- **Skip CI bot noise**: Comments from bots posting coverage reports, build status, formatting output, or deployment previews (e.g., `github-actions[bot]`, `codecov[bot]`, `netlify[bot]`). These are informational, not actionable code feedback.
-- **Skip quota/limit messages**: Bot comments about usage limits, credits, or billing (e.g., "usage limits reached", "credits must be used").
-- **Skip auto-generated summaries**: HTML-heavy bot output, badge images, collapsible coverage tables.
-- **Keep actionable review feedback**: Comments from human reviewers and code review bots that provide severity-tagged findings, specific code suggestions, or requested changes (e.g., `gemini-code-assist[bot]` with critical/major/minor labels).
-
----
-
-## PR Review Extension (`gh pr-review`)
-
-A GitHub CLI extension for posting inline threaded review comments on PRs — similar to what Gemini Code Assist posts. Skills detect this extension at startup and use it when available; if absent, they fall back to default behavior.
-
-**Do NOT auto-install this extension.** If unavailable, silently fall back.
-
-### Detection
-
-```bash
-gh pr-review --help >/dev/null 2>&1
-```
-
-Store the result as a boolean flag `has_pr_review_ext` (true if exit code 0, false otherwise). Also capture the repo identifier for `-R` flags:
-
-```bash
-REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-```
-
-### Command Reference
-
-#### Start a pending review
-
-```bash
-gh pr-review review --start -R ${REPO} <PR_NUMBER>
-```
-
-Returns a `REVIEW_ID` (integer) used by subsequent commands.
-
-#### Add an inline comment to a pending review
-
-```bash
-gh pr-review review --add-comment --review-id ${REVIEW_ID} \
-  --path <file_path> --line <line_number> \
-  --body "comment body" \
-  -R ${REPO} <PR_NUMBER>
-```
-
-- `--path`: file path relative to repo root (must exist in the diff)
-- `--line`: line number in the diff (must be a changed or context line)
-- Run sequentially — do NOT add comments in parallel
-
-#### Submit a pending review
-
-```bash
-gh pr-review review --submit --review-id ${REVIEW_ID} \
-  --event COMMENT \
-  --body "summary body" \
-  -R ${REPO} <PR_NUMBER>
-```
-
-- `--event`: one of `COMMENT`, `APPROVE`, `REQUEST_CHANGES`
-- The `--body` becomes the top-level review summary
-
-#### View review threads (structured JSON)
-
-```bash
-gh pr-review review view -R ${REPO} --pr <PR_NUMBER> --unresolved
-```
-
-Returns JSON array of threads with fields: `thread_id`, `path`, `line`, `body`, `is_resolved`.
-
-#### Reply to a review thread
-
-```bash
-gh pr-review comments reply <PR_NUMBER> -R ${REPO} \
-  --thread-id <THREAD_ID> --body "reply body"
-```
-
-#### Resolve a review thread
-
-```bash
-gh pr-review threads resolve --thread-id <THREAD_ID> -R ${REPO} <PR_NUMBER>
-```
-
-### Error Handling
-
-- If `--start` or `--add-comment` fails, abandon the inline review and fall back to the default `gh pr review --comment` approach.
-- If `threads resolve` fails, log and continue — never abort a fix loop over a resolution failure.
-- All commands require the repo flag `-R ${REPO}` to avoid ambiguity in detached-HEAD states.
-
----
-
-## Adding a New CLI
-
-To add support for a new external CLI agent:
-
-1. Create a new file `references/{cli-name}.md` with a top-level heading (e.g., `# NewAgent (Vendor)`) containing:
-   - Binary name, install command, approval mode, git requirements
-   - Fresh command template, session resume command, one-shot command
-   - Prompt passing strategy (heredoc vs direct string)
-   - Output cleanup rules
-   - Known quirks
-2. No changes needed to the skill files — they dynamically read this catalog and the per-agent files, building commands for each agent in the resolved roster.
-3. Non-agent tools (like `gh pr-review`) that support skills but are not review agents go in their own dedicated section in this file (e.g., "PR Review Extension").
+Use [pr-review.md](pr-review.md) only for retrieving structured review threads or authorized
+GitHub review/comment mutations. The plugin does not require installing a review extension.

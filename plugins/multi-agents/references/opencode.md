@@ -1,8 +1,7 @@
 # OpenCode
 
 - **Binary:** `opencode`
-- **Install:** See [opencode-ai/opencode](https://github.com/opencode-ai/opencode) repo
-- **Approval mode:** None available — already runs unrestricted.
+- **Permissions:** Follow [shared conventions](agent-catalog.md); use current CLI help to restrict question/review participants to the permitted task scope.
 - **Model flag:** `-m {model}` to specify model (e.g., `bailian-coding-plan/glm-5`)
 - **Requires git:** No
 
@@ -10,17 +9,17 @@
 
 **Fresh session:**
 ```bash
-opencode run {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+opencode run {model_flag} "{prompt_flattened}" 2>&1
 ```
 
 **Session resume (round-table only):**
 ```bash
-opencode run --session {session_id} {model_flag} "{prompt_flattened}" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+opencode run --session {session_id} {model_flag} "{prompt_flattened}" 2>&1
 ```
 
 **One-shot (review-pr):**
 ```bash
-opencode run -m {model} "{prompt}"
+opencode run {model_flag} "{prompt}"
 ```
 
 Where `{model_flag}` is `-m {model}` if a model is configured, or empty string if no model specified.
@@ -28,7 +27,7 @@ Where `{model_flag}` is `-m {model}` if a model is configured, or empty string i
 ## Prompt Passing
 - **Do NOT use heredoc patterns.** Pass the prompt as a direct quoted positional argument.
 - Heredoc + pipe patterns can cause opencode to hang indefinitely with no output.
-- Replace `--` with single dash or em-dash in prompts to avoid flag parsing issues.
+- Preserve prompt text. If flag parsing fails, use the installed CLI's argument delimiter or file-input support.
 - `{prompt_flattened}` means the prompt text with newlines preserved but passed as a single quoted argument.
 
 ## Session Resume
@@ -40,4 +39,4 @@ Where `{model_flag}` is `-m {model}` if a model is configured, or empty string i
 - Remove the `> build · {model}` header line.
 
 ## Known Quirks
-- May run longer than other CLIs. If the Bash tool auto-backgrounds it, use `TaskOutput` to wait for completion (up to 600s), then `TaskStop` if it exceeds the timeout.
+- May run longer than other CLIs. If the Bash tool auto-backgrounds it, use `TaskOutput` to collect its result and `TaskStop` to stop it after the task timeout. The default bound is 600 seconds.

@@ -1,40 +1,42 @@
 # Codex (OpenAI)
 
 - **Binary:** `codex`
-- **Install:** `npm install -g @openai/codex`
-- **Approval mode:** `--full-auto` (auto-approves, workspace-write sandbox) for round-table; `--dangerously-bypass-approvals-and-sandbox` for review-pr
-- **Requires git:** Yes — fails with "Not inside a trusted directory" if not in a git repo. Use `-C {git_dir}` flag (before `exec`) to specify the git directory, or create a temp repo.
+- **Permissions:** Follow [shared conventions](agent-catalog.md); use current CLI help to restrict question/review participants to the permitted task scope.
+- **Workspace:** Use the intended repository or an isolated temporary workspace. Check current `codex exec --help` for repository-check options if Git context is unavailable.
 
 ## Commands
 
 **Fresh session:**
 ```bash
-codex exec -C {git_dir} {approval_flag} "$(cat <<'PROMPT_EOF'
+codex exec -C {git_dir} {permission_flags} {model_flag} "$(cat <<'PROMPT_EOF'
 {prompt}
 PROMPT_EOF
-)" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+)" 2>&1
 ```
 
 **Session resume (round-table only):**
 ```bash
-cd {git_dir} && codex exec resume {session_id} "$(cat <<'PROMPT_EOF'
+cd {git_dir} && codex exec resume {model_flag} {session_id} "$(cat <<'PROMPT_EOF'
 {prompt}
 PROMPT_EOF
-)" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'
+)" 2>&1
 ```
 
-**One-shot (review-pr, with inline diff):**
+**One-shot (review-pr, prepared prompt on stdin):**
 ```bash
-codex exec --dangerously-bypass-approvals-and-sandbox \
-  "$(printf '{prompt_prefix}'; cat {diff_file}; printf '{prompt_suffix}')"
+codex exec {permission_flags} {model_flag} \
+  - < {prompt_file}
 ```
+
+`{model_flag}` is `--model {model}` when selected, otherwise empty. Substitute properly
+quoted arguments or an argument array; capture the process exit status before cleaning output.
 
 ## Prompt Passing
 - Use heredoc pattern `"$(cat <<'PROMPT_EOF' ... PROMPT_EOF)"` for multi-line prompts.
-- For review-pr: embed diff inline via `printf` + `cat` — Codex cannot reliably read files.
+- For reviews, provide accessible read-only files or a prompt on stdin. Include diff text only when the participant cannot access its source.
 
 ## Session Resume
-- Use `codex exec resume {session_id} "<prompt>"` — NOT `--last`. The `--last` flag cannot be combined with a prompt positional argument.
+- Use `codex exec resume {session_id} "<prompt>"`; avoid `--last` because parallel participants can resume the wrong session.
 - **Capture session ID** from round 1 output: look for `session id: {uuid}` in the output header.
 - Run from the git directory with `cd {git_dir} &&` for resume commands.
 - **Fallback:** If resume fails, fall back to fresh session with full context summary.
@@ -45,5 +47,5 @@ codex exec --dangerously-bypass-approvals-and-sandbox \
 - Strip metadata headers (version, workdir, model, session id).
 
 ## Known Quirks
-- Requires a git repository — create temp repo at `/tmp/round-table-workspace` if needed.
+- Use a unique temporary workspace when isolation is needed; do not reuse another task's files.
 - Output contains metadata headers and a `thinking` block before the actual response.
